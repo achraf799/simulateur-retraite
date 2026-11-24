@@ -228,12 +228,12 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-700">
-                  Trimestres cotisés (Carrière Longue)
+                  Trimestres cotisés ou réputés cotisés (carrière longue)
                 </label>
                 <FormulaTooltip
                   title="Trimestres cotisés & réputés cotisés"
-                  formula="Cotisés réels + max 4 trim. chômage/maladie/AVPF"
-                  explanation="Trimestres ayant donné lieu à cotisations directes, servant à vérifier l'éligibilité au départ anticipé."
+                  formula="Total carrière longue à la date de départ simulée"
+                  explanation="Indiquez le total cotisé et les périodes réputées cotisées déjà retenues par votre caisse."
                   articleCss="Art. D. 351-1-2 CSS"
                 />
               </div>

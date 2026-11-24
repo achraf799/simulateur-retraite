@@ -32,6 +32,7 @@ describe('Cumul emploi-retraite', () => {
   it('réduit euro pour euro avant l’âge légal, sans nouveaux droits', () => {
     const cer = simulateCer({
       birthDate: '1966-12-01',
+      specialCircumstances: undefined,
       cerIncomeByPeriod: { beforeLegalAge: 5000 },
     });
     expect(cer.annualReduction).toBe(5000);
@@ -51,6 +52,7 @@ describe('Cumul emploi-retraite', () => {
       desiredDepartureDate: '2027-01-01',
       cerResumptionDate: '2027-02-01',
       cerActivityEndDate: '2027-02-28',
+      specialCircumstances: undefined,
       cerIncomeByPeriod: { beforeLegalAge: 20000 },
     };
     const result = calculateRetirement(profile, SAKURA_CAREER);

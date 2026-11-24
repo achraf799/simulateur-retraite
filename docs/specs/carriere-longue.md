@@ -1,0 +1,39 @@
+# Départ anticipé pour carrière longue
+
+Spécification du 24 novembre 2026 pour les salariés des régimes de base couverts par le simulateur. Le résultat indique si le départ choisi est possible au titre de la carrière longue, le seuil d’âge applicable et les trimestres encore nécessaires. Le moteur actuel regarde uniquement la borne des 20 ans et autorise un départ dès 60 ans.
+
+## Règles de calcul
+
+1. **Repérer les bornes atteintes.** Pour chacune des bornes 16, 18, 20 et 21 ans, comparer les trimestres d’assurance cumulés à la fin de l’année civile de l’anniversaire aux 5 trimestres requis, ou 4 pour une naissance d’octobre à décembre. Le décompte de début de carrière peut inclure des périodes assimilées validées. L’exception liée à un début de carrière au régime des non-salariés agricoles demande une donnée d’affiliation explicite. Une ligne MSA ne suffit pas à la déduire. [Service Public](https://www.service-public.gouv.fr/particuliers/vosdroits/F13845) · [Circulaire Cnav 2026/29, § 1.1](https://legislation.lassuranceretraite.fr/Documents/Circulaires/Pdf/circulaire_cnav_2026_29_04092026.pdf)
+2. **Appliquer le barème de la date d’effet.** Prendre en compte la génération et les exceptions dans l’année de naissance. Les bornes de 16, 18 et 21 ans correspondent respectivement à 58, 60 et 63 ans. La borne de 20 ans a un barème par génération. Utiliser les versions réglementaires applicables à partir du 1er septembre 2023, du 1er janvier 2026 et du 1er septembre 2026. Examiner la clause de sauvegarde pour les générations concernées lorsqu’elle peut modifier le résultat. Si la simulation couvre une génération ou une date non documentée dans ses barèmes, indiquer que le droit reste à vérifier. [Décret n° 2023-436, art. 3](https://www.legifrance.gouv.fr/jorf/article_jo/JORFARTI000047625809) · [Barème de janvier 2026](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000053356023/2026-07-02) · [Barème de septembre 2026](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000054059621/2026-09-01)
+3. **Vérifier la durée cotisée à la date simulée.** Comparer la durée requise au total cotisé et réputé cotisé, tous régimes de base confondus. Pour une carrière annuelle, plafonner à quatre le cumul d’une même année, traiter les années dupliquées et exclure les droits postérieurs à la date d’effet. Pour l’année de départ, tenir compte des trimestres civils écoulés. En mode express, recueillir un total réputé acquis à la date simulée et expliquer s’il inclut déjà les périodes assimilées admissibles. [Circulaire Cnav 2026/29, § 1.2 et annexes](https://legislation.lassuranceretraite.fr/Documents/Circulaires/Pdf/circulaire_cnav_2026_29_04092026.pdf)
+4. **Éviter le double comptage.** Les périodes réputées cotisées suivent des plafonds par nature et sur l’ensemble des régimes. À compter du 1er septembre 2026, jusqu’à deux trimestres de majoration pour enfant admissibles peuvent entrer dans le total, par assuré. Les intégrer uniquement si la saisie permet de savoir qu’ils sont attribués, admissibles et absents du total déjà fourni. En cas de données agrégées ou de périodes non datées, utiliser le nombre carrière longue confirmé sur le relevé et signaler la donnée manquante. [Décret n° 2026-700, art. 1 et 2](https://www.legifrance.gouv.fr/eli/decret/2026/7/29/2026-700/jo/texte) · [Circulaire Cnav 2026/29, § 1.2.4](https://legislation.lassuranceretraite.fr/Documents/Circulaires/Pdf/circulaire_cnav_2026_29_04092026.pdf)
+
+## Date et affichage
+
+- Calculer la première date possible au regard de l’âge, parmi les bornes satisfaites, avec prise d’effet le premier jour d’un mois. Si l’âge est atteint en cours de mois, retenir le premier jour du mois suivant. Appliquer le barème en vigueur à chaque date candidate, notamment lorsqu’une date tombe avant le 1er septembre 2026 selon les règles qui entrent en vigueur ce jour-là. La date administrative dépend aussi du dépôt de la demande. [Article R. 351-37](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000054060160/2026-11-01) · [Circulaire Cnav 2026/29, § 3](https://legislation.lassuranceretraite.fr/Documents/Circulaires/Pdf/circulaire_cnav_2026_29_04092026.pdf)
+- Quand la durée cotisée manque, afficher l’âge minimal et le solde de trimestres. Présenter toute date future comme conditionnée à l’acquisition des trimestres manquants si leur date n’est pas établie. Si la date choisie atteint l’âge légal, appliquer le parcours de départ de droit commun et conserver l’information sur l’éventuelle ouverture antérieure.
+- En saisie détaillée, afficher les trimestres calculés à chaque borne. En express, permettre de déclarer les trimestres à la fin de chacune des quatre années repères. Reprendre l’ancien champ « avant 20 ans » pour la seule borne des 20 ans et vérifier que les totaux déclarés ne décroissent pas. Distinguer les valeurs inconnues des zéros saisis.
+- L’étape « Cas particuliers » et le bilan utilisent le même résultat. Afficher séparément les trimestres de début de carrière, la durée cotisée et la date d’effet. Si la carrière longue ouvre le taux plein à la date choisie, transmettre cette éligibilité au calcul des pensions et au module CER.
+
+## Cas d’acceptation
+
+| Situation | Résultat attendu |
+| --- | --- |
+| 5 trimestres à la fin de l’année des 16 ans et durée cotisée suffisante | Borne 16 ans retenue, seuil d’âge de 58 ans |
+| Moins de 5 trimestres à la borne 16 ans, mais 5 à la borne 18 ans | Borne 18 ans retenue, seuil de 60 ans |
+| 5 trimestres atteints seulement à la fin de l’année des 21 ans, génération 1970 | Borne 21 ans retenue, seuil de 63 ans |
+| Quatre trimestres à la borne testée, naissance le 30 septembre puis le 1er octobre | Borne non atteinte le 30 septembre et atteinte le 1er octobre |
+| Naissance le 15 mars 1965, début avant 20 ans et 170 trimestres retenus, départ au 1er août puis au 1er septembre 2026 | Durée insuffisante en août. Départ possible en septembre si les autres conditions sont remplies |
+| Naissance le 15 février 1966, début avant 20 ans uniquement et 172 trimestres cotisés, départ au 1er novembre puis au 1er décembre 2026 | Âge minimal de 60 ans et 9 mois atteint le 15 novembre. Première date d’effet liée à l’âge le 1er décembre |
+| Deux lignes de régimes différents sur la même année avec quatre trimestres chacune | Au plus quatre trimestres retenus pour cette année |
+| Départ au 1er septembre, quatre trimestres saisis sur l’année de départ | Au plus deux trimestres civils retenus sur cette année |
+| 170 trimestres cotisés et deux trimestres enfant admissibles déjà inclus dans un total carrière longue confirmé de 172 | Total retenu de 172, sans seconde addition |
+| Mode express avec l’ancien champ « avant 20 ans » seul | Borne 20 ans évaluable. Les bornes 16 et 18 ans restent indéterminées |
+| Cas Sakura avec sa carrière de référence | Départ anticipé admis au 1er janvier 2025 |
+
+Les cas de génération et de date d’effet sont fondés sur les versions successives du barème et l’annexe 3 de la circulaire en vigueur. [Circulaire Cnav 2026/29](https://legislation.lassuranceretraite.fr/Documents/Circulaires/Pdf/circulaire_cnav_2026_29_04092026.pdf)
+
+## Périmètre du chiffrage
+
+Le simulateur reprend les trimestres réputés cotisés déjà compris dans le décompte fourni. Il ne reconstitue pas les plafonds par catégorie à partir des compteurs globaux d’interruptions, qui ne portent pas de dates ni de ventilation par régime. La clause de sauvegarde, les débuts de carrière au régime des non-salariés agricoles et les droits antérieurs au barème documenté nécessitent une vérification avec la caisse. [Clause de sauvegarde, décret n° 2023-436, art. 8](https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000047627494) · [Circulaire Cnav 2026/29](https://legislation.lassuranceretraite.fr/Documents/Circulaires/Pdf/circulaire_cnav_2026_29_04092026.pdf)

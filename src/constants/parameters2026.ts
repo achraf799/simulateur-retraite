@@ -50,12 +50,23 @@ export interface GenerationScale {
 export const GENERATION_SCALES: GenerationScale[] = [
   {
     birthYear: 1961,
+    birthMonthEnd: 8,
     legalAgeYears2023: 62,
     legalAgeMonths2023: 0,
     quartersRequired2023: 168,
     legalAgeYears2026: 62,
     legalAgeMonths2026: 0,
     quartersRequired2026: 168,
+  },
+  {
+    birthYear: 1961,
+    birthMonthStart: 9,
+    legalAgeYears2023: 62,
+    legalAgeMonths2023: 3,
+    quartersRequired2023: 169,
+    legalAgeYears2026: 62,
+    legalAgeMonths2026: 3,
+    quartersRequired2026: 169,
   },
   {
     birthYear: 1962,

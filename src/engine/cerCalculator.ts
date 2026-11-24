@@ -1,3 +1,4 @@
+import { addMonths, validDate } from '../utils/civilDates';
 import { REPERES_2026 } from '../constants/parameters2026';
 import type {
   CerAnalysisResult,
@@ -14,20 +15,6 @@ const JANUARY_HOURLY_SMIC: Partial<Record<number, number>> = {
   2025: 11.88,
   2026: REPERES_2026.smicHoraire2026,
 };
-
-function validDate(value: string): boolean {
-  const date = new Date(value);
-  return /^\d{4}-\d{2}-\d{2}$/.test(value)
-    && Number.isFinite(date.getTime())
-    && date.toISOString().slice(0, 10) === value;
-}
-
-function addMonths(value: string, months: number): string {
-  const [year, month, day] = value.split('-').map(Number);
-  const lastDay = new Date(Date.UTC(year, month + months, 0)).getUTCDate();
-  return new Date(Date.UTC(year, month - 1 + months, Math.min(day, lastDay)))
-    .toISOString().slice(0, 10);
-}
 
 function followingMonth(value: string): string {
   return addMonths(value.slice(0, 7) + '-01', 1);
@@ -47,6 +34,7 @@ export function analyzeCer(
   legalAgeMonths: number,
   requiredQuarters: number,
   validatedQuarters: number,
+  retirementEligible: boolean,
   baseMonthly: number,
   complementaryMonthly: number,
 ): CerAnalysisResult {
@@ -80,6 +68,9 @@ export function analyzeCer(
   if (![departure, firstPension, resumption, profile.birthDate].every(validDate)
     || resumption < departure || firstPension > departure) {
     return unavailable('Vérifiez les dates. La première pension doit prendre effet au plus tard au départ simulé, et la reprise au plus tôt à ce départ.');
+  }
+  if (!retirementEligible && firstPension === departure) {
+    return unavailable('Le départ simulé ne permet pas de liquider la pension. Modifiez la date de départ pour évaluer le cumul.');
   }
   if (profile.cerSeparateComplementaryPension) {
     return unavailable('Une liquidation de la complémentaire à une autre date nécessite de vérifier le régime de cumul applicable.');
