@@ -53,12 +53,39 @@ export interface UserProfile {
   cerResumptionDate: string; // YYYY-MM-DD
   cerFormerEmployer: boolean;
   cerNewGrossMonthlySalary: number; // EUR
+  cerFirstBasePensionDate?: string;
+  cerSeparateComplementaryPension?: boolean;
+  cerAllPensionsLiquidated?: boolean;
+  cerActivityEndDate?: string;
+  cerIncomeByPeriod?: Partial<Record<CerReductionBand, number>>;
+  cerPriorThreeMonthsAverage?: number;
+  cerLastRevaluedSalary?: number;
+  cerLastTenYearsAverage?: number;
   careerMode?: 'detailed' | 'express';
   expressData?: ExpressCareerData;
   specialCircumstances?: SpecialCircumstances;
 }
 
+export type CerReductionBand = 'beforeLegalAge' | 'beforeFullRateAge';
+
+export interface CerReductionPeriod {
+  band: CerReductionBand;
+  startDate: string;
+  endDate: string;
+  annualThreshold?: number;
+  income?: number;
+  reduction?: number;
+}
+
 export interface CerAnalysisResult {
+  regime: 'before2027' | 'from2027';
+  unavailable?: boolean;
+  fullCumulStartDate?: string;
+  baseSuspensionStartDate?: string;
+  paidBaseMonthly?: number;
+  paidComplementaryMonthly?: number;
+  periods?: CerReductionPeriod[];
+  annualReduction?: number;
   status: 'PLAFONNE' | 'INTEGRAL';
   alertLevel: 'RED' | 'YELLOW' | 'GREEN';
   alertMessage: string;
@@ -69,7 +96,7 @@ export interface CerAnalysisResult {
   totalCerRevenue: number;
   exceedsCeiling: boolean;
   ecretementAmount: number;
-  effectiveMonthlyGrossPension: number;
+  effectiveMonthlyGrossPension?: number;
   generatesNewRights: boolean;
   newRightsDetails: string;
   recommendations: Array<{

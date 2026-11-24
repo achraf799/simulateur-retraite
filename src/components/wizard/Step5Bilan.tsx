@@ -5,9 +5,6 @@ import {
   ShieldCheck,
   AlertTriangle,
   XCircle,
-  Building2,
-  Calendar,
-  ArrowRight,
   ChevronDown,
   ChevronUp,
   Award,
@@ -50,24 +47,9 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
     },
   ];
 
-  // Actions alternatives 1 clic pour le CER
-  const handleShiftToLegalAge = () => {
-    // Calcul de la date exacte de l'âge légal
-    const [bYear, bMonth, bDay] = profile.birthDate.split('-').map(Number);
-    const targetDate = new Date(
-      bYear + result.legalAge.years,
-      bMonth - 1 + result.legalAge.months,
-      bDay || 1
-    );
-    const y = targetDate.getFullYear();
-    const m = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const d = String(targetDate.getDate()).padStart(2, '0');
-    onChangeProfile({ desiredDepartureDate: `${y}-${m}-${d}` });
-  };
-
-  const handleSwitchToNewEmployer = () => {
-    onChangeProfile({ cerFormerEmployer: false });
-  };
+  const formatDate = (date: string) => date.split('-').reverse().join('/');
+  const formatEuros = (amount: number) =>
+    amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
   return (
     <div className="max-w-4xl mx-auto space-y-7 animate-fadeIn">
@@ -264,92 +246,68 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
         </div>
       </div>
 
-      {/* 3. CARTE ALERTE « ET AU-DELÀ... » (SI REPRISE ACTIVÉE) */}
       {profile.cerEnabled && (
-        <div
+        <section
+          aria-labelledby="cer-result-title"
           className={`rounded-2xl border-2 p-6 shadow-xs space-y-4 ${
-            cer.alertLevel === 'RED'
-              ? 'bg-rose-50/70 border-rose-300'
-              : cer.alertLevel === 'YELLOW'
-              ? 'bg-amber-50/70 border-amber-300'
-              : 'bg-emerald-50/70 border-emerald-300'
+            cer.alertLevel === 'RED' ? 'bg-rose-50 border-rose-300'
+              : cer.alertLevel === 'YELLOW' ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-300'
           }`}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span
-                className={`text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider ${
-                  cer.status === 'PLAFONNE'
-                    ? 'bg-amber-200 text-amber-950'
-                    : 'bg-emerald-200 text-emerald-950'
-                }`}
-              >
-                {cer.status === 'PLAFONNE' ? 'Régime CER Plafonné' : 'Régime CER Intégral'}
-              </span>
-              <span className="text-xs font-bold text-slate-700">Projet « Et au-delà... »</span>
-            </div>
-
-            <div className="text-xs font-extrabold text-slate-900">
-              Pension versée en cumul :{' '}
-              <span className={cer.suspensionApplies ? 'text-rose-600' : 'text-emerald-700'}>
-                {cer.effectiveMonthlyGrossPension.toLocaleString('fr-FR')} €/mois
-              </span>
-            </div>
-          </div>
-
-          <p className="text-xs text-slate-800 leading-relaxed font-medium">
-            {cer.alertMessage}
-          </p>
-
-          {/* Boutons « Tester une alternative en 1 clic » si Alerte Rouge ou Plafonné */}
-          {cer.status === 'PLAFONNE' && (
-            <div className="pt-3 border-t border-slate-200/80">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 block mb-2.5">
-                💡 Tester une alternative en 1 clic devant le jury :
-              </span>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Alternative 1 : Tester nouvel employeur */}
-                {profile.cerFormerEmployer && (
-                  <button
-                    type="button"
-                    onClick={handleSwitchToNewEmployer}
-                    className="p-3 bg-white hover:bg-slate-50 border border-slate-300 hover:border-tealbrand-500 rounded-xl text-left transition-all shadow-2xs group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-tealbrand-600" />
-                        Reprendre chez un nouvel employeur
-                      </span>
-                      <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-tealbrand-600 transition-colors" />
-                    </div>
-                    <span className="text-[11px] text-slate-500 block mt-1">
-                      Supprime la carence de 6 mois et rétablit immédiatement vos 3 098 € de pension !
-                    </span>
-                  </button>
-                )}
-
-                {/* Alternative 2 : Décaler le départ à l'âge légal */}
-                <button
-                  type="button"
-                  onClick={handleShiftToLegalAge}
-                  className="p-3 bg-white hover:bg-slate-50 border border-slate-300 hover:border-tealbrand-500 rounded-xl text-left transition-all shadow-2xs group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-institution-600" />
-                      Décaler le départ à l'âge légal ({result.legalAge.formatted})
-                    </span>
-                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-institution-600 transition-colors" />
-                  </div>
-                  <span className="text-[11px] text-slate-500 block mt-1">
-                    Bascule en CER INTÉGRAL (cumul libre sans plafond de salaire et nouveaux droits).
-                  </span>
-                </button>
-              </div>
+          <h3 id="cer-result-title" className="font-bold text-sm">
+            Cumul emploi-retraite · {cer.regime === 'from2027' ? 'Règles 2027' : 'Règles antérieures à 2027'}
+          </h3>
+          <p className="text-sm">{cer.alertMessage}</p>
+          {cer.regime === 'from2027' && !cer.unavailable && (
+            <div className="space-y-3 text-sm">
+              {cer.baseSuspensionStartDate && (
+                <p>Pension de base suspendue à partir du {formatDate(cer.baseSuspensionStartDate)}.</p>
+              )}
+              {cer.periods?.map((period) => (
+                <div key={period.band} className="border-t border-slate-200 pt-2">
+                  <p className="font-semibold">{formatDate(period.startDate)} au {formatDate(period.endDate)}</p>
+                  <p>{period.band === 'beforeLegalAge'
+                    ? 'Réduction à hauteur des revenus retenus.'
+                    : period.annualThreshold === undefined
+                      ? 'Seuil annuel non disponible pour cette année.'
+                      : `Réduction de 50 % au-delà du seuil annuel de ${formatEuros(period.annualThreshold)}.`}</p>
+                  {period.income === undefined && <p>Renseignez les revenus de la période pour obtenir une estimation.</p>}
+                </div>
+              ))}
+              {cer.annualReduction !== undefined && (
+                <p className="font-semibold">
+                  Réduction estimée au titre de {profile.cerResumptionDate.slice(0, 4)} · {formatEuros(cer.annualReduction)}
+                </p>
+              )}
+              {cer.fullCumulStartDate && (
+                <p>Cumul intégral possible à compter du {formatDate(cer.fullCumulStartDate)}, sous réserve de liquidation des pensions exigibles.</p>
+              )}
             </div>
           )}
-        </div>
+          {cer.regime === 'before2027' && !cer.unavailable && (
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="font-semibold">Retraite de base au début de la reprise</dt>
+                <dd>{cer.paidBaseMonthly === undefined ? 'Plafond à confirmer' : formatEuros(cer.paidBaseMonthly) + ' / mois'}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Agirc-Arrco au début de la reprise</dt>
+                <dd>{cer.paidComplementaryMonthly === undefined ? 'Plafond à confirmer' : formatEuros(cer.paidComplementaryMonthly) + ' / mois'}</dd>
+              </div>
+            </dl>
+          )}
+          {cer.newRightsDetails && <p className="text-sm font-medium">{cer.newRightsDetails}</p>}
+          {cer.regime === 'before2027' && !cer.unavailable && cer.status === 'PLAFONNE'
+            && profile.cerFormerEmployer && cer.waitingMonthsRemaining > 0 && (
+              <button
+                type="button"
+                onClick={() => onChangeProfile({ cerFormerEmployer: false })}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold hover:border-tealbrand-500"
+              >
+                Simuler une reprise chez un nouvel employeur
+              </button>
+            )}
+        </section>
       )}
 
       {/* 4. 1 SEUL GRAPHIQUE ÉPURÉ */}
@@ -449,17 +407,9 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 <span>4. Règles du Cumul Emploi-Retraite (CER) :</span>
                 <span className="text-[11px] font-mono text-tealbrand-700">Art. L. 161-22 & L. 161-22-1-1 CSS</span>
               </h4>
-              <ul className="list-disc pl-4 space-y-1 text-[11px] text-slate-600">
-                <li>
-                  <strong>Départ &lt; âge légal (62 ans 9 mois pour 1963) :</strong> statut CER PLAFONNÉ obligatoire.
-                </li>
-                <li>
-                  <strong>Délai de carence :</strong> 6 mois chez l'ancien employeur sous peine de suspension intégrale des pensions.
-                </li>
-                <li>
-                  <strong>Plafond de revenus :</strong> MAX(Dernier salaire de 4 500 €, 1,6 SMIC de 2 916,92 €).
-                </li>
-              </ul>
+              <p className="text-[11px] text-slate-600">
+                La date d’effet de la première retraite de base détermine les règles de cumul applicables.
+              </p>
             </div>
           </div>
         )}

@@ -4,12 +4,10 @@ import { FormulaTooltip } from '../common/FormulaTooltip';
 import {
   Calendar,
   Briefcase,
-  AlertTriangle,
   CheckCircle2,
   Euro,
   Info,
   Clock,
-  Building,
   UserCheck,
   Ban,
   ArrowRight,
@@ -53,14 +51,12 @@ export const Step4DepartureAndCer: React.FC<Step4DepartureAndCerProps> = ({
   // Années proposées : de 2024 à 2035
   const years = Array.from({ length: 12 }, (_, i) => String(2024 + i));
 
-  // Parsing CER reprise date
-  const cerDate = profile.cerResumptionDate || '2025-02-01';
-  const [cerYear, cerMonth] = cerDate.split('-');
+  const cerYear = (profile.cerResumptionDate || departureDate).slice(0, 4);
 
-  const handleCerDateChange = (year: string, month: string) => {
-    const formattedDate = `${year}-${month.padStart(2, '0')}-01`;
-    onChangeProfile({ cerResumptionDate: formattedDate });
-  };
+  const cer = calculationResult.cerAnalysis;
+  const isNewCer = cer.regime === 'from2027';
+  const inputClass = 'mt-1 block w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm';
+  const periodDate = (date: string) => date.split('-').reverse().join('/');
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -264,115 +260,136 @@ export const Step4DepartureAndCer: React.FC<Step4DepartureAndCerProps> = ({
               Paramètres de votre reprise d'activité (Cumul Emploi-Retraite)
             </div>
 
-            {/* Q1: Date de reprise */}
-            <div>
-              <label className="text-xs sm:text-sm font-bold text-slate-900 block mb-2">
-                1. Date prévisionnelle de reprise d'activité
-              </label>
-              <div className="grid grid-cols-2 gap-3 max-w-md">
-                <select
-                  value={cerMonth}
-                  onChange={(e) => handleCerDateChange(cerYear, e.target.value)}
-                  className="px-3 py-2 text-sm font-semibold border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                >
-                  {months.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={cerYear}
-                  onChange={(e) => handleCerDateChange(e.target.value, cerMonth)}
-                  className="px-3 py-2 text-sm font-semibold border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                >
-                  {years.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            <label className="block text-sm font-semibold sm:max-w-xs">
+              Date prévisionnelle de reprise d’activité
+              <input
+                type="date"
+                min={profile.desiredDepartureDate}
+                value={profile.cerResumptionDate}
+                onChange={(e) => onChangeProfile({
+                  cerResumptionDate: e.target.value,
+                  cerActivityEndDate: undefined,
+                  cerIncomeByPeriod: undefined,
+                })}
+                className={inputClass}
+              />
+            </label>
 
-            {/* Q2: Reprise chez le dernier employeur ? */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                  <Building className="w-4 h-4 text-slate-600" />
-                  2. Reprenez-vous chez votre dernier employeur ?
-                </label>
-                <FormulaTooltip
-                  title="Délai de carence de 6 mois (Art. L. 161-22 CSS)"
-                  formula="En CER plafonné (taux plein non atteint à l'âge légal), la reprise chez le même employeur impose un délai d'attente de 6 mois. À défaut, le versement de toutes les pensions est suspendu."
-                  articleCss="Art. L. 161-22 alinéa 2 du Code de la Sécurité Sociale"
-                
-              explanation=""
-            />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 max-w-md">
-                <button
-                  type="button"
-                  onClick={() => onChangeProfile({ cerFormerEmployer: true })}
-                  className={`py-2.5 px-4 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all ${
-                    profile.cerFormerEmployer
-                      ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-sm'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  Oui (Même employeur)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onChangeProfile({ cerFormerEmployer: false })}
-                  className={`py-2.5 px-4 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all ${
-                    !profile.cerFormerEmployer
-                      ? 'border-emerald-600 bg-emerald-50 text-emerald-900 shadow-sm'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  Non (Nouvel employeur)
-                </button>
-              </div>
-            </div>
-
-            {/* Q3: Nouveau salaire mensuel brut envisagé */}
-            <div>
-              <label className="text-xs sm:text-sm font-bold text-slate-900 block mb-2">
-                3. Salaire mensuel brut d'activité envisagé
-              </label>
-              <div className="relative max-w-xs">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="text-sm font-semibold">
+                Date d’effet de votre première retraite de base
                 <input
-                  type="number"
-                  min={0}
-                  step={50}
-                  value={profile.cerNewGrossMonthlySalary}
-                  onChange={(e) =>
-                    onChangeProfile({
-                      cerNewGrossMonthlySalary: Math.max(0, parseFloat(e.target.value) || 0),
-                    })
-                  }
-                  className="w-full px-3.5 py-2.5 text-base font-bold text-slate-900 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 pr-10"
+                  type="date"
+                  max={profile.desiredDepartureDate}
+                  value={profile.cerFirstBasePensionDate ?? ''}
+                  onChange={(e) => onChangeProfile({ cerFirstBasePensionDate: e.target.value || undefined })}
+                  className={inputClass}
                 />
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">
-                  € / mois
+                <span className="mt-1 block text-xs font-normal text-slate-600">
+                  Laissez vide si elle débute à la date de départ simulée.
                 </span>
-              </div>
+              </label>
+              <label className="text-sm font-semibold">
+                Toutes les pensions exigibles sont-elles liquidées à la reprise ?
+                <select
+                  value={profile.cerAllPensionsLiquidated === undefined ? '' : String(profile.cerAllPensionsLiquidated)}
+                  onChange={(e) => onChangeProfile({
+                    cerAllPensionsLiquidated: e.target.value === '' ? undefined : e.target.value === 'true',
+                  })}
+                  className={inputClass}
+                >
+                  <option value="">À confirmer</option>
+                  <option value="true">Oui</option>
+                  <option value="false">Non</option>
+                </select>
+              </label>
             </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={profile.cerSeparateComplementaryPension ?? false}
+                onChange={(e) => onChangeProfile({ cerSeparateComplementaryPension: e.target.checked })}
+                className="mt-1"
+              />
+              La date d’effet de ma retraite complémentaire diffère de celle de ma retraite de base.
+            </label>
 
-            {/* Message de vigilance immédiat si même employeur */}
-            {profile.cerFormerEmployer && (
-              <div className="bg-amber-50 border border-amber-300 rounded-xl p-3.5 text-xs text-amber-900 flex items-start gap-2.5">
-                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold block">Point de vigilance juridique (Délai de 6 mois) :</span>
-                  Si vous n'avez pas atteint l'âge légal et le taux plein, reprendre chez le même employeur
-                  moins de 6 mois après votre départ suspend le versement de vos pensions (Art. L. 161-22 CSS).
-                  Le Bilan à l'étape suivante vous proposera des alternatives immédiates en 1 clic.
-                </div>
+            {isNewCer ? (
+              <div className="space-y-4">
+                <label className="block text-sm font-semibold sm:max-w-xs">
+                  Dernier mois d’activité simulé dans l’année de reprise
+                  <input
+                    type="month"
+                    min={profile.cerResumptionDate.slice(0, 7)}
+                    max={cerYear + '-12'}
+                    value={profile.cerActivityEndDate?.slice(0, 7) ?? cerYear + '-12'}
+                    onChange={(e) => {
+                      const [year, month] = e.target.value.split('-').map(Number);
+                      const end = e.target.value
+                        ? new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10)
+                        : undefined;
+                      onChangeProfile({ cerActivityEndDate: end, cerIncomeByPeriod: undefined });
+                    }}
+                    className={inputClass}
+                  />
+                </label>
+                {cer.periods?.map((period) => (
+                  <label key={period.band} className="block text-sm font-semibold">
+                    Revenus bruts du {periodDate(period.startDate)} au {periodDate(period.endDate)} (€)
+                    <span className="mt-1 block text-xs font-normal text-slate-600">
+                      Total des revenus d’activité et des revenus de remplacement retenus pour cette période.
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={period.income ?? ''}
+                      onChange={(e) => onChangeProfile({
+                        cerIncomeByPeriod: {
+                          ...profile.cerIncomeByPeriod,
+                          [period.band]: e.target.value === '' ? undefined : Math.max(0, e.target.valueAsNumber),
+                        },
+                      })}
+                      className={inputClass + ' sm:max-w-xs'}
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={profile.cerFormerEmployer}
+                    onChange={(e) => onChangeProfile({ cerFormerEmployer: e.target.checked })}
+                  />
+                  Je reprends chez mon dernier employeur.
+                </label>
+                {([
+                  ['cerNewGrossMonthlySalary', 'Salaire mensuel brut après reprise (€)'],
+                  ['cerPriorThreeMonthsAverage', 'Moyenne mensuelle brute des trois derniers mois d’activité (€)'],
+                  ['cerLastRevaluedSalary', 'Dernier salaire mensuel revalorisé Agirc-Arrco (€)'],
+                  ['cerLastTenYearsAverage', 'Moyenne mensuelle revalorisée sur dix ans Agirc-Arrco (€)'],
+                ] as const).map(([field, label]) => (
+                  <label key={field} className="text-sm font-semibold">
+                    {label}
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={profile[field] ?? ''}
+                      onChange={(e) => onChangeProfile({
+                        [field]: e.target.value === ''
+                          ? field === 'cerNewGrossMonthlySalary' ? 0 : undefined
+                          : Math.max(0, e.target.valueAsNumber),
+                      })}
+                      className={inputClass}
+                    />
+                  </label>
+                ))}
               </div>
             )}
+            {cer.unavailable && <p role="status" className="text-sm text-amber-900">{cer.alertMessage}</p>}
           </div>
         )}
       </div>
