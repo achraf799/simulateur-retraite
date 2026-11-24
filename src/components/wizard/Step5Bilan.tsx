@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CalculationResult, UserProfile } from '../../types/retirement';
+import { LongCareerSummary } from '../common/LongCareerSummary';
 import { SimpleTooltip } from '../common/SimpleTooltip';
 import {
   ShieldCheck,
@@ -111,18 +112,17 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
               <h2 className="text-xl font-black text-slate-900 tracking-tight">
                 {result.eligibilityStatus === 'eligible_taux_plein'
                   ? result.isCarriereLongue
-                    ? 'Départ anticipé accordé au Taux Plein sans aucune décote'
+                    ? 'Départ anticipé à taux plein selon la simulation'
                     : 'Départ à l’âge légal avec pension au Taux Plein'
                   : result.eligibilityStatus === 'eligible_decote'
                   ? 'Départ possible mais pension soumise à minoration'
-                  : 'Âge légal non atteint et conditions de carrière longue non remplies'}
+                  : 'Départ non confirmé à la date choisie'}
               </h2>
 
-              <p className="text-xs text-slate-700 leading-relaxed max-w-2xl">
-                {result.isCarriereLongue
-                  ? `Éligibilité Carrière Longue confirmée : début d'activité avant 20 ans (${result.totalContributedQuarters} trimestres cotisés pour ${result.requiredQuarters} requis).`
-                  : `Âge au départ : ${result.ageAtDeparture.formatted} (Âge légal requis : ${result.legalAge.formatted} avec ${result.requiredQuarters} trimestres).`}
+              <p className="text-xs text-slate-700">
+                Âge au départ · {result.ageAtDeparture.formatted}. Âge légal · {result.legalAge.formatted}.
               </p>
+              <LongCareerSummary result={result.longCareer} />
             </div>
           </div>
 

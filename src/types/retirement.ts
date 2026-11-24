@@ -21,9 +21,26 @@ export interface CareerYear {
   isTopYear?: boolean; // top N best years for SAM
 }
 
+export type EarlyCareerAge = 16 | 18 | 20 | 21;
+
+export interface LongCareerResult {
+  status: 'eligible' | 'tooEarly' | 'missingQuarters' | 'unknown' | 'notEligible' | 'regularDeparture';
+  earlyQuarters: Partial<Record<EarlyCareerAge, number>>;
+  requiredEarlyQuarters: number;
+  startAge?: EarlyCareerAge;
+  minimumAgeMonths?: number;
+  earliestAgeDate?: string;
+  contributedQuarters?: number;
+  requiredQuarters?: number;
+  safeguardToVerify?: boolean;
+  details: string;
+}
+
 export interface SpecialCircumstances {
   earlyCareer: boolean; // Début précoce avant 20 ans
   earlyQuartersCount: number; // Nombre de trimestres avant 20 ans (ex: 13 pour Sakura)
+  earlyCareerQuarters?: Partial<Record<EarlyCareerAge, number>>;
+  longCareerConfirmedQuarters?: number;
   careerInterruptions: boolean; // Maladie, maternité, chômage, AVPF
   sicknessQuarters: number;
   maternityQuarters: number;
@@ -123,6 +140,7 @@ export interface CalculationResult {
   requiredQuarters: number;
   totalValidatedQuarters: number;
   totalContributedQuarters: number;
+  longCareer: LongCareerResult;
   isCarriereLongue: boolean;
   carriereLongueDetails: string;
   eligibilityStatus: 'eligible_taux_plein' | 'eligible_decote' | 'ineligible';

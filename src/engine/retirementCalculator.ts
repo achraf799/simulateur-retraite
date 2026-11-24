@@ -2,6 +2,8 @@ import { CareerYear, UserProfile, CalculationResult } from '../types/retirement'
 import { getPassForYear, FRF_TO_EUR_RATE } from '../constants/passHistory';
 import { getCnavCoeff } from '../constants/cnavCoefficients';
 import { analyzeCer } from './cerCalculator';
+import { analyzeLongCareer, firstPensionDate } from './longCareer';
+import { addMonths, validDate } from '../utils/civilDates';
 import { REPERES_2026, GENERATION_SCALES } from '../constants/parameters2026';
 
 /**
@@ -22,13 +24,16 @@ export function calculateRetirement(
   const birthDate = new Date(profile.birthDate);
   const departureDate = new Date(profile.desiredDepartureDate);
 
-  const birthYear = birthDate.getFullYear();
-  const birthMonth = birthDate.getMonth() + 1; // 1-12
-  const departureYear = departureDate.getFullYear();
-  const departureMonth = departureDate.getMonth() + 1; // 1-12
+  const birthYear = birthDate.getUTCFullYear();
+  const birthMonth = birthDate.getUTCMonth() + 1; // 1-12
+  const departureYear = departureDate.getUTCFullYear();
+  const departureMonth = departureDate.getUTCMonth() + 1; // 1-12
 
   // Âge en mois au départ
-  const ageTotalMonths = (departureYear - birthYear) * 12 + (departureMonth - birthMonth);
+  const elapsedCalendarMonths = (departureYear - birthYear) * 12 + (departureMonth - birthMonth);
+  const birthdayMonthCompleted = validDate(profile.birthDate) && validDate(profile.desiredDepartureDate)
+    && profile.desiredDepartureDate >= addMonths(profile.birthDate, elapsedCalendarMonths);
+  const ageTotalMonths = elapsedCalendarMonths - (birthdayMonthCompleted ? 0 : 1);
   const ageYears = Math.floor(ageTotalMonths / 12);
   const ageMonths = ageTotalMonths % 12;
 
@@ -116,30 +121,10 @@ export function calculateRetirement(
 
   const totalValidatedQuarters = totalValidatedQuartersFromCareer;
 
-  // 4. Détection Carrière Longue (RACL - Art. L. 351-1-1 CSS)
-  // Début précoce : avoir au moins 5 trimestres validés avant la fin de l'année des 16/18/20/21 ans (ou 4 si né au T4)
-  let quartersBefore20 = processedCareer
-    .filter((r) => r.year <= birthYear + 20)
-    .reduce((sum, r) => sum + r.validatedQuarters, 0);
-
-  if (profile.specialCircumstances?.earlyCareer && profile.specialCircumstances.earlyQuartersCount > 0) {
-    quartersBefore20 = Math.max(quartersBefore20, profile.specialCircumstances.earlyQuartersCount);
-  }
-
-  const minEarlyQuartersRequired = birthMonth >= 10 ? 4 : 5;
-  const hasEarlyStart = quartersBefore20 >= minEarlyQuartersRequired;
-  const hasEnoughContributedQuarters = totalContributedQuarters >= requiredQuarters;
-
-  // Éligibilité RACL à 60 ou 62 ans selon début d'activité et trimestres cotisés
-  const isCarriereLongue = hasEarlyStart && hasEnoughContributedQuarters;
-  let carriereLongueDetails = '';
-  if (isCarriereLongue) {
-    carriereLongueDetails = `Début d'activité avant 20 ans (${quartersBefore20} trimestres validés fin ${birthYear + 20} pour ${minEarlyQuartersRequired} requis) et ${totalContributedQuarters} trimestres cotisés/réputés cotisés pour ${requiredQuarters} requis. Éligible départ anticipé à taux plein.`;
-  } else if (!hasEarlyStart) {
-    carriereLongueDetails = `Début d'activité précoce insuffisant (${quartersBefore20} trimestres avant 20 ans, minimum requis : ${minEarlyQuartersRequired}).`;
-  } else {
-    carriereLongueDetails = `Trimestres cotisés insuffisants (${totalContributedQuarters} cotisés pour ${requiredQuarters} requis).`;
-  }
+  const longCareer = analyzeLongCareer(profile, processedCareer, legalAgeTotalMonths, requiredQuarters);
+  const isCarriereLongue = longCareer.status === 'eligible';
+  const reachesLegalAge = validDate(profile.birthDate) && validDate(profile.desiredDepartureDate)
+    && profile.desiredDepartureDate >= firstPensionDate(profile.birthDate, legalAgeTotalMonths);
 
   // Taux plein automatique pour situation particulière (Inaptitude, handicap, invalidité - Art. L. 351-8 CSS)
   const isAutomaticFullRateSpecial =
@@ -147,9 +132,9 @@ export function calculateRetirement(
 
   // Statut d'éligibilité globale
   let eligibilityStatus: 'eligible_taux_plein' | 'eligible_decote' | 'ineligible';
-  if ((isCarriereLongue && ageYears >= 60) || isAutomaticFullRateSpecial) {
+  if (isCarriereLongue || isAutomaticFullRateSpecial) {
     eligibilityStatus = 'eligible_taux_plein';
-  } else if (ageTotalMonths >= legalAgeTotalMonths) {
+  } else if (reachesLegalAge) {
     if (totalValidatedQuarters >= requiredQuarters || ageYears >= REPERES_2026.ageTauxPleinAutomatiqueAnnees) {
       eligibilityStatus = 'eligible_taux_plein';
     } else {
@@ -291,6 +276,7 @@ export function calculateRetirement(
     legalAgeTotalMonths,
     requiredQuarters,
     totalValidatedQuarters,
+    eligibilityStatus !== 'ineligible',
     basePensionMonthlyGross,
     agircMonthlyGross
   );
@@ -311,8 +297,9 @@ export function calculateRetirement(
     requiredQuarters,
     totalValidatedQuarters,
     totalContributedQuarters,
+    longCareer,
     isCarriereLongue,
-    carriereLongueDetails,
+    carriereLongueDetails: longCareer.details,
     eligibilityStatus,
     appliedRule,
     samYearsCount,

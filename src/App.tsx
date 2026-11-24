@@ -51,12 +51,22 @@ export const App: React.FC = () => {
   // ─── Profile / career updates ──────────────────────────────────────────
   const handleUpdateProfile = (updated: Partial<UserProfile>) => {
     setProfile((prev) => {
-      const periodChanged =
-        (updated.birthDate !== undefined && updated.birthDate !== prev.birthDate) ||
-        (updated.desiredDepartureDate !== undefined && updated.desiredDepartureDate !== prev.desiredDepartureDate) ||
-        ('cerFirstBasePensionDate' in updated && updated.cerFirstBasePensionDate !== prev.cerFirstBasePensionDate);
+      const birthChanged = updated.birthDate !== undefined && updated.birthDate !== prev.birthDate;
+      const departureChanged = updated.desiredDepartureDate !== undefined
+        && updated.desiredDepartureDate !== prev.desiredDepartureDate;
+      const firstPensionChanged = 'cerFirstBasePensionDate' in updated
+        && updated.cerFirstBasePensionDate !== prev.cerFirstBasePensionDate;
+      const next = { ...prev, ...updated };
 
-      return { ...prev, ...(periodChanged ? { cerIncomeByPeriod: undefined } : {}), ...updated };
+      if (birthChanged || departureChanged || firstPensionChanged) next.cerIncomeByPeriod = undefined;
+      if ((birthChanged || departureChanged) && next.specialCircumstances) {
+        next.specialCircumstances = { ...next.specialCircumstances, longCareerConfirmedQuarters: undefined };
+        if (birthChanged) {
+          next.specialCircumstances.earlyCareerQuarters = undefined;
+          next.specialCircumstances.earlyQuartersCount = 0;
+        }
+      }
+      return next;
     });
     setCurrentScenario('custom');
   };
@@ -166,7 +176,7 @@ export const App: React.FC = () => {
           <Step3SpecialCases
             profile={profile}
             onChangeProfile={handleUpdateProfile}
-            isCarriereLongue={calculationResult.isCarriereLongue}
+            longCareer={calculationResult.longCareer}
           />
         )}
 

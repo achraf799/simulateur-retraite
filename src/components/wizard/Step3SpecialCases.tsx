@@ -1,5 +1,7 @@
 import React from 'react';
-import { UserProfile, SpecialCircumstances } from '../../types/retirement';
+import { UserProfile, SpecialCircumstances, LongCareerResult } from '../../types/retirement';
+import { LongCareerSummary } from '../common/LongCareerSummary';
+import { EARLY_CAREER_AGES } from '../../engine/longCareer';
 import { FormulaTooltip } from '../common/FormulaTooltip';
 import {
   Clock,
@@ -14,17 +16,17 @@ import {
 interface Step3SpecialCasesProps {
   profile: UserProfile;
   onChangeProfile: (updated: Partial<UserProfile>) => void;
-  isCarriereLongue?: boolean;
+  longCareer: LongCareerResult;
 }
 
 export const Step3SpecialCases: React.FC<Step3SpecialCasesProps> = ({
   profile,
   onChangeProfile,
-  isCarriereLongue,
+  longCareer,
 }) => {
   const sc: SpecialCircumstances = profile.specialCircumstances || {
-    earlyCareer: true,
-    earlyQuartersCount: 13,
+    earlyCareer: false,
+    earlyQuartersCount: 0,
     careerInterruptions: false,
     sicknessQuarters: 0,
     maternityQuarters: 0,
@@ -58,101 +60,70 @@ export const Step3SpecialCases: React.FC<Step3SpecialCasesProps> = ({
       </div>
 
       <div className="grid grid-cols-1 gap-5">
-        {/* CARTE 1 : Début de carrière précoce (Carrière longue - RACL) */}
-        <div
-          className={`rounded-2xl border-2 p-5 sm:p-6 transition-all duration-200 shadow-sm ${
-            sc.earlyCareer
-              ? 'border-emerald-300 bg-emerald-50/20 ring-1 ring-emerald-200'
-              : 'border-slate-200 bg-white hover:border-slate-300'
-          }`}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div
-                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                  sc.earlyCareer ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                }`}
-              >
-                <Clock className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-slate-900 text-base sm:text-lg">
-                    1. Début de carrière précoce (Carrière longue)
-                  </h3>
-                  <FormulaTooltip
-                    title="Dispositif Carrière Longue (RACL - Art. L. 351-1-1 CSS)"
-                    formula="Départ anticipé possible dès 60 ou 62 ans si : 4 ou 5 trimestres cotisés avant 20 ans + total trimestres cotisés >= durée requise"
-                    explanation="Permet de partir à taux plein avant l'âge légal si vous avez commencé à travailler très tôt."
-                    articleCss="Art. L. 351-1-1 et D. 351-1-1 du Code de la Sécurité Sociale (Réforme 2023)"
-                  />
-                </div>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  Avez-vous cotisé au moins 4 ou 5 trimestres avant la fin de l'année civile de vos 20 ans ?
-                </p>
-              </div>
-            </div>
-
-            {/* Boutons Oui / Non */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl shrink-0">
-              <button
-                type="button"
-                onClick={() => updateSc({ earlyCareer: false })}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                  !sc.earlyCareer
-                    ? 'bg-white text-slate-700 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Non
-              </button>
-              <button
-                type="button"
-                onClick={() => updateSc({ earlyCareer: true })}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                  sc.earlyCareer
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Oui
-              </button>
+        <section className="rounded-2xl border-2 border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex items-start gap-3">
+            <Clock className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
+            <div>
+              <h3 className="font-bold text-slate-900">Départ anticipé pour carrière longue</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Comparez les trimestres validés à la fin de chacune des années repères.
+                Il en faut {longCareer.requiredEarlyQuarters} à une borne.
+              </p>
             </div>
           </div>
 
-          {/* Déplié si Oui */}
-          {sc.earlyCareer && (
-            <div className="mt-5 pt-4 border-t border-emerald-100/80 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <label className="text-xs sm:text-sm font-semibold text-slate-700">
-                  Trimestres cotisés avant la fin de l'année des 20 ans :
-                </label>
-                <div className="flex items-center gap-2">
+          <div className="my-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {EARLY_CAREER_AGES.map((age) => {
+              const legacy = age === 20 && sc.earlyCareer && sc.earlyQuartersCount > 0 ? sc.earlyQuartersCount : undefined;
+              const declared = sc.earlyCareerQuarters?.[age] ?? legacy;
+              return (
+                <label key={age} className="text-sm font-semibold text-slate-700">
+                  Fin de l’année des {age} ans
                   <input
                     type="number"
                     min={0}
-                    max={20}
-                    value={sc.earlyQuartersCount}
-                    onChange={(e) =>
-                      updateSc({ earlyQuartersCount: Math.max(0, parseInt(e.target.value, 10) || 0) })
-                    }
-                    className="w-24 px-3 py-1.5 text-sm font-bold text-center border-2 border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
+                    step={1}
+                    value={declared ?? ''}
+                    placeholder={longCareer.earlyQuarters[age]?.toString() ?? 'Inconnu'}
+                    onChange={(event) => updateSc({
+                      earlyQuartersCount: age === 20 ? 0 : sc.earlyQuartersCount,
+                      earlyCareerQuarters: {
+                        ...sc.earlyCareerQuarters,
+                        [age]: event.target.value === '' ? undefined : Math.max(0, Math.floor(event.target.valueAsNumber)),
+                      },
+                    })}
+                    className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                   />
-                  <span className="text-xs text-slate-500 font-medium">trimestres (ex: 13 pour Sakura)</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 bg-emerald-100/70 text-emerald-800 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>
-                  {isCarriereLongue
-                    ? '✅ Éligibilité confirmée : Départ anticipé possible dès 62 ans à taux plein (50 %) sans décote !'
-                    : 'Départ anticipé possible sous réserve de valider la durée totale de trimestres cotisés requise.'}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
+                </label>
+              );
+            })}
+          </div>
+          <p className="mb-4 text-xs text-slate-600">
+            Les valeurs en grisé viennent du relevé détaillé. Saisissez un total pour remplacer une valeur ou compléter le mode express.
+          </p>
+          <label className="block max-w-xl text-sm font-semibold text-slate-700">
+            Total carrière longue confirmé à la date de départ
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={sc.longCareerConfirmedQuarters ?? ''}
+              placeholder={longCareer.contributedQuarters?.toString() ?? 'Inconnu'}
+              onChange={(event) => updateSc({
+                longCareerConfirmedQuarters: event.target.value === '' ? undefined : Math.max(0, Math.floor(event.target.valueAsNumber)),
+              })}
+              className="mt-1 block w-full max-w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <p className="mb-4 mt-1 text-xs text-slate-600">
+            Utilisez le total confirmé par votre caisse, y compris les trimestres réputés cotisés
+            qu’elle a déjà retenus. En laissant ce champ vide, le simulateur utilise les trimestres
+            cotisés du relevé ou le total du mode express.
+          </p>
+          <div className="rounded-lg bg-slate-50 p-3" aria-live="polite">
+            <LongCareerSummary result={longCareer} />
+          </div>
+        </section>
 
         {/* CARTE 2 : Interruptions de carrière & Périodes assimilées */}
         <div
@@ -295,8 +266,8 @@ export const Step3SpecialCases: React.FC<Step3SpecialCasesProps> = ({
               <div className="text-[11px] text-slate-500 flex items-center gap-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                 <Info className="w-4 h-4 text-institution-600 shrink-0" />
                 <span>
-                  Pour la carrière longue, le Code de la Sécurité Sociale autorise jusqu'à 4 trimestres réputés
-                  cotisés pour la maladie, le chômage et l'AVPF.
+                  Ces compteurs globaux servent à documenter votre situation. Pour la carrière longue,
+                  utilisez le total confirmé par votre caisse dans la première section.
                 </span>
               </div>
             </div>
