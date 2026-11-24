@@ -154,6 +154,7 @@ if (Math.abs(pointsDiff) > 0.01) {
  */
 export const LFSS_2026_PROFILE: UserProfile = {
   nir: '2650375001234',
+  samEligibleChildren: 2,
   birthDate: '1965-03-15',
   sex: 'F',
   childrenCount: 2,

@@ -12,6 +12,7 @@ export function exportCareerToCsv(career: CareerYear[]): string {
     'TrimestresCotises',
     'PointsAgirc',
     'TypeEvenement',
+    'TraitementSAM',
   ];
 
   const rows = career.map((r) => [
@@ -23,6 +24,7 @@ export function exportCareerToCsv(career: CareerYear[]): string {
     r.contributedQuarters,
     r.agircPoints,
     r.eventType,
+    r.samIncomeKind ?? '',
   ]);
 
   return [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
@@ -42,6 +44,7 @@ export function importCareerFromCsv(csvText: string, liquidationYear = 2025): Ca
   const pointsIdx = headers.findIndex((h) => h.includes('points') || h.includes('agirc'));
   const eventIdx = headers.findIndex((h) => h.includes('event') || h.includes('evenement'));
 
+  const samIdx = headers.indexOf('traitementsam');
   const parsedRows: CareerYear[] = [];
 
   for (let i = 1; i < lines.length; i++) {
@@ -51,11 +54,11 @@ export function importCareerFromCsv(csvText: string, liquidationYear = 2025): Ca
     const year = parseInt(cols[yearIdx >= 0 ? yearIdx : 0], 10);
     if (isNaN(year)) continue;
 
-    const currency: Currency = (devIdx >= 0 && cols[devIdx].toUpperCase() === 'FRF') ? 'FRF' : 'EUR';
+    const currency: Currency = (devIdx >= 0 && cols[devIdx]?.toUpperCase() === 'FRF') ? 'FRF' : 'EUR';
     const grossIncome = parseFloat(cols[revIdx >= 0 ? revIdx : 2]) || 0;
     const grossIncomeEur =
       currency === 'FRF' ? Number((grossIncome / FRF_TO_EUR_RATE).toFixed(2)) : grossIncome;
-    const regime: Regime = (regIdx >= 0 && cols[regIdx].toUpperCase() === 'MSA') ? 'MSA' : 'CNAV';
+    const regime: Regime = (regIdx >= 0 && cols[regIdx]?.toUpperCase() === 'MSA') ? 'MSA' : 'CNAV';
     const validatedQuarters = Math.min(4, Math.max(0, parseInt(cols[trimValIdx >= 0 ? trimValIdx : 4], 10) || 0));
     const contributedQuarters = Math.min(4, Math.max(0, parseInt(cols[trimCotIdx >= 0 ? trimCotIdx : 5], 10) || 0));
     const agircPoints = parseFloat(cols[pointsIdx >= 0 ? pointsIdx : 6]) || 0;
@@ -66,6 +69,7 @@ export function importCareerFromCsv(csvText: string, liquidationYear = 2025): Ca
     const cnavCoeff = getCnavCoeff(year, liquidationYear);
     const revaluedSalaryEur = Number((retainedSalaryEur * cnavCoeff).toFixed(2));
 
+    const samIncomeKind = cols[samIdx];
     parsedRows.push({
       year,
       currency,
@@ -80,6 +84,9 @@ export function importCareerFromCsv(csvText: string, liquidationYear = 2025): Ca
       contributedQuarters,
       agircPoints,
       eventType,
+      ...(samIncomeKind === 'salary' || samIncomeKind === 'excluded' || samIncomeKind === 'buyback'
+        ? { samIncomeKind }
+        : {}),
     });
   }
 
