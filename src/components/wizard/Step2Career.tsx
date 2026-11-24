@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CareerYear, UserProfile, Currency, SamAnalysis, SamIncomeKind, SamYear } from '../../types/retirement';
 import { samIncomeKind } from '../../engine/annualSalary';
+import { SamParametersNote } from '../common/SamParametersNote';
 import { FormulaTooltip } from '../common/FormulaTooltip';
 import {
   Zap,
@@ -349,6 +350,8 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               />
             </div>
           </div>
+
+          <SamParametersNote analysis={samAnalysis} />
 
           {samAnalysis.parentAdjustmentPending && (
             <p className="text-xs text-amber-900">

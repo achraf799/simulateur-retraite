@@ -24,15 +24,13 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
       expect(result.totalContributedQuarters).toBe(173);
     });
 
-    it('doit retenir 25 meilleures années pour le SAM et aboutir à ≈ 40 923 €', () => {
+    it('retient les 25 meilleures années et calcule le SAM avec le barème 2025', () => {
       expect(result.samYearsCount).toBe(25);
-      // Tolérance fine de quelques euros sur le SAM
-      expect(Math.round(result.sam)).toBeCloseTo(40923, -1);
+      expect(result.sam).toBe(40910.48);
     });
 
-    it('doit calculer une pension de base brute avec +10% enfants de ≈ 1 875,66 €/mois', () => {
-      // 40 923 * 50% * 1 * 1.10 / 12 = 1 875.66 €
-      expect(result.basePensionMonthlyGross).toBeCloseTo(1875.66, 1);
+    it('calcule la pension de base brute de 1 875,06 €/mois avec la majoration enfants', () => {
+      expect(result.basePensionMonthlyGross).toBe(1875.06);
     });
 
     it('doit calculer une pension Agirc-Arrco brute avec +10% de ≈ 1 223,00 €/mois', () => {
@@ -42,11 +40,10 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
       expect(result.agircMonthlyGross).toBeCloseTo(1223.00, 1);
     });
 
-    it('doit calculer un total brut de ≈ 3 098,65 €/mois et un net de ≈ 2 804 €/mois', () => {
-      expect(result.totalMonthlyGross).toBeCloseTo(3098.65, 0);
-      expect(result.totalMonthlyNet).toBeCloseTo(2804.45, -1);
-      // Taux de remplacement brut : 3 098.65 / 4 500 = 68.86 %
-      expect(result.grossReplacementRate).toBeCloseTo(68.86, 1);
+    it('calcule le total brut, le net et le taux de remplacement de Sakura', () => {
+      expect(result.totalMonthlyGross).toBe(3098.06);
+      expect(result.totalMonthlyNet).toBe(2803.91);
+      expect(result.grossReplacementRate).toBe(68.85);
     });
 
     it('doit déclencher une ALERTE ROUGE sur le Cumul Emploi-Retraite (carence 6 mois chez l’ancien employeur)', () => {

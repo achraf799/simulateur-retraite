@@ -1,5 +1,5 @@
-import { getCnavCoeff } from '../constants/cnavCoefficients';
-import { FRF_TO_EUR_RATE, getPassForYear } from '../constants/passHistory';
+import { getCnavCoeff, getCnavRevaluationYear } from '../constants/cnavCoefficients';
+import { FRF_TO_EUR_RATE, getPassForYear, LAST_CONFIRMED_PASS_YEAR } from '../constants/passHistory';
 import { getSamQuarterThreshold } from '../constants/samQuarterThresholds';
 import type { CareerYear, SamAnalysis, SamIncomeKind, SamYear, UserProfile } from '../types/retirement';
 
@@ -32,6 +32,11 @@ export function calculateAnnualSalary(
     return Number.isFinite(amount) && amount > 0
       ? { ...result, source: 'express', amount, years: [], topYears: [] }
       : { ...result, source: 'unavailable', amount: 0, years: [], topYears: [] };
+  }
+
+  const revaluationYear = getCnavRevaluationYear(liquidationYear);
+  if (revaluationYear === undefined) {
+    return { ...result, source: 'unavailable', amount: 0, years: [], topYears: [] };
   }
 
   const groups = new Map<number, CareerYear[]>();
@@ -85,5 +90,11 @@ export function calculateAnnualSalary(
     amount: selected.length ? euros(sum / selected.length) : 0,
     years: years.sort((a, b) => a.year - b.year),
     topYears: selected.map(({ year }) => year),
+    revaluationYear,
+    usesProjectedRevaluation: liquidationYear > revaluationYear,
+    projectedPassYears: selected
+      .filter(({ year, ceilingEur }) => year > LAST_CONFIRMED_PASS_YEAR && ceilingEur !== undefined)
+      .map(({ year }) => year)
+      .sort((a, b) => a - b),
   };
 }
