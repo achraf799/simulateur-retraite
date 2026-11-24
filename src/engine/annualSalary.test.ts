@@ -33,7 +33,7 @@ describe('Salaire annuel moyen de la retraite de base', () => {
       careerRow(2027, 47000),
     ]);
     expect(result.topYears).toEqual([2025, 2024]);
-    expect(result.sam).toBe(25180);
+    expect(result.sam).toBe(25445);
     expect(result.samAnalysis.yearLimit).toBe(25);
   });
 
@@ -49,7 +49,7 @@ describe('Salaire annuel moyen de la retraite de base', () => {
       { year: 2024, salaryEur: 1800, status: 'selected' },
       { year: 2025, salaryEur: 60000, retainedSalaryEur: 47100, status: 'selected' },
     ]);
-    expect(result.sam).toBe(24466.2);
+    expect(result.sam).toBe(24689.85);
   });
 
   it('sépare un revenu de remplacement, un salaire AVPF et une année exclue pour rachat', () => {
@@ -95,6 +95,20 @@ describe('Salaire annuel moyen de la retraite de base', () => {
     expect(result.samYearsCount).toBe(limit);
     expect(result.topYears).toHaveLength(limit);
     expect(result.samAnalysis.parentAdjustmentPending).toBe(children === undefined);
+  });
+
+  it('réutilise les derniers paramètres disponibles en signalant une liquidation future', () => {
+    const result = simulate([careerRow(2026, 60000), careerRow(2027, 60000), careerRow(2028, 60000)], {
+      desiredDepartureDate: '2029-01-01',
+    });
+    expect(result.samAnalysis).toMatchObject({
+      revaluationYear: 2026, usesProjectedRevaluation: true, projectedPassYears: [2027, 2028],
+      years: [
+        { year: 2026, ceilingEur: 48060, coefficient: 1 },
+        { year: 2027, ceilingEur: 48900, coefficient: 1 },
+        { year: 2028, ceilingEur: 48900, coefficient: 1 },
+      ],
+    });
   });
 
   it('conserve le SAM saisi en express, même si le relevé est présent', () => {

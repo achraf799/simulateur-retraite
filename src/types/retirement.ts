@@ -144,6 +144,9 @@ export interface SamAnalysis {
   amount: number;
   yearLimit: number;
   parentAdjustmentPending: boolean;
+  revaluationYear?: number;
+  usesProjectedRevaluation?: boolean;
+  projectedPassYears?: number[];
   years: SamYear[];
   topYears: number[];
 }

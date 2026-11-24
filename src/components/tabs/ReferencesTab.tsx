@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { REPERES_2026, GENERATION_SCALES } from '../../constants/parameters2026';
 import { PASS_HISTORY } from '../../constants/passHistory';
-import { CNAV_COEFFICIENTS_2025 } from '../../constants/cnavCoefficients';
+import { getCnavCoeff } from '../../constants/cnavCoefficients';
 import { BookOpen, Scale, Landmark, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 
 export const ReferencesTab: React.FC = () => {
@@ -255,7 +255,7 @@ export const ReferencesTab: React.FC = () => {
                         {p.passFrf ? `${p.passFrf.toLocaleString('fr-FR')} FRF` : '—'}
                       </td>
                       <td className="py-1.5 px-3 font-mono text-institution-700 font-semibold">
-                        {CNAV_COEFFICIENTS_2025[p.year] ? CNAV_COEFFICIENTS_2025[p.year].toFixed(3) : '1.000'}
+                        {p.year >= 1948 && p.year < 2025 ? getCnavCoeff(p.year, 2025).toFixed(3) : '—'}
                       </td>
                     </tr>
                   ))}

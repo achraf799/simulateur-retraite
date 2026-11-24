@@ -73,7 +73,7 @@ export const SAKURA_PROFILE: UserProfile = {
   expressData: {
     totalQuarters: 177,
     contributedQuarters: 173,
-    estimatedSam: 40923.49,
+    estimatedSam: 40910.48,
     agircPoints: 9274.16,
   },
 };

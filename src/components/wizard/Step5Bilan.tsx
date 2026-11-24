@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CalculationResult, UserProfile } from '../../types/retirement';
+import { SamParametersNote } from '../common/SamParametersNote';
 import { LongCareerSummary } from '../common/LongCareerSummary';
 import { SimpleTooltip } from '../common/SimpleTooltip';
 import {
@@ -217,6 +218,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 <strong className="text-slate-800">{formatEuros(sam.amount)}</strong>
               </div>
             )}
+            <SamParametersNote analysis={sam} />
             {sam.source !== 'express' && sam.parentAdjustmentPending && (
               <p className="mt-2 text-xs text-amber-800">La réduction du plafond pour enfant reste à confirmer.</p>
             )}
