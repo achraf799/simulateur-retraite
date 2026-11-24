@@ -151,10 +151,10 @@ export const CerTab: React.FC<CerTabProps> = ({
                 cer.suspensionApplies ? 'text-rose-600' : 'text-institution-800'
               }`}
             >
-              {cer.effectiveMonthlyGrossPension.toLocaleString('fr-FR', {
+              {cer.effectiveMonthlyGrossPension?.toLocaleString('fr-FR', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
-              })}{' '}
+              }) ?? 'À confirmer'}{' '}
               <span className="text-xs font-normal text-slate-500">€ brut/mois</span>
             </div>
             {cer.ecretementAmount > 0 && !cer.suspensionApplies && (

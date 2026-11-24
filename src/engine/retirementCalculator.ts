@@ -1,6 +1,7 @@
-import { CareerYear, UserProfile, CalculationResult, CerAnalysisResult } from '../types/retirement';
+import { CareerYear, UserProfile, CalculationResult } from '../types/retirement';
 import { getPassForYear, FRF_TO_EUR_RATE } from '../constants/passHistory';
 import { getCnavCoeff } from '../constants/cnavCoefficients';
+import { analyzeCer } from './cerCalculator';
 import { REPERES_2026, GENERATION_SCALES } from '../constants/parameters2026';
 
 /**
@@ -287,10 +288,11 @@ export function calculateRetirement(
   // 10. Module Cumul Emploi-Retraite (CER)
   const cerAnalysis = analyzeCer(
     profile,
-    ageTotalMonths,
     legalAgeTotalMonths,
-    eligibilityStatus,
-    totalMonthlyGross
+    requiredQuarters,
+    totalValidatedQuarters,
+    basePensionMonthlyGross,
+    agircMonthlyGross
   );
 
   return {
@@ -337,218 +339,5 @@ export function calculateRetirement(
     totalMonthlyNet,
     grossReplacementRate,
     cerAnalysis,
-  };
-}
-
-/**
- * Analyse experte du Cumul Emploi-Retraite (Art. L. 161-22 et L. 161-22-1-1 CSS)
- */
-function analyzeCer(
-  profile: UserProfile,
-  ageTotalMonths: number,
-  legalAgeTotalMonths: number,
-  eligibilityStatus: 'eligible_taux_plein' | 'eligible_decote' | 'ineligible',
-  totalMonthlyGrossPension: number
-): CerAnalysisResult {
-  if (!profile.cerEnabled) {
-    return {
-      status: 'PLAFONNE',
-      alertLevel: 'GREEN',
-      alertMessage: 'Aucune reprise d’activité prévue après le départ en retraite.',
-      suspensionApplies: false,
-      waitingMonthsRemaining: 0,
-      waitingPeriodEndDate: '',
-      ceilingAmount: 0,
-      totalCerRevenue: 0,
-      exceedsCeiling: false,
-      ecretementAmount: 0,
-      effectiveMonthlyGrossPension: totalMonthlyGrossPension,
-      generatesNewRights: false,
-      newRightsDetails: 'N/A',
-      recommendations: [],
-    };
-  }
-
-  const departureDate = new Date(profile.desiredDepartureDate);
-  const resumptionDate = new Date(profile.cerResumptionDate);
-
-  const monthsBetweenDepartureAndResumption =
-    (resumptionDate.getFullYear() - departureDate.getFullYear()) * 12 +
-    (resumptionDate.getMonth() - departureDate.getMonth());
-
-  // Date de fin du délai de carence de 6 mois
-  const waitingEndDate = new Date(departureDate);
-  waitingEndDate.setMonth(waitingEndDate.getMonth() + 6);
-  const waitingPeriodEndDate = waitingEndDate.toISOString().split('T')[0];
-  const waitingMonthsRemaining = Math.max(0, 6 - monthsBetweenDepartureAndResumption);
-
-  // Cas 1 : Départ avant l'âge légal (ex: Carrière longue) -> CER Plafonné
-  const isBeforeLegalAge = ageTotalMonths < legalAgeTotalMonths;
-  const isTauxPleinAtLegalAge =
-    ageTotalMonths >= legalAgeTotalMonths && eligibilityStatus === 'eligible_taux_plein';
-
-  if (isBeforeLegalAge) {
-    // Statut : CER PLAFONNÉ
-    const ceilingAmount = Math.max(
-      profile.lastGrossMonthlySalary,
-      REPERES_2026.plafond1_6SmicMensuel
-    );
-    const totalCerRevenue = totalMonthlyGrossPension + profile.cerNewGrossMonthlySalary;
-    const exceedsCeiling = totalCerRevenue > ceilingAmount;
-    const ecretementAmount = exceedsCeiling ? Number((totalCerRevenue - ceilingAmount).toFixed(2)) : 0;
-
-    // Règle critique : Reprise chez l'ancien employeur sous 6 mois
-    if (profile.cerFormerEmployer && monthsBetweenDepartureAndResumption < 6) {
-      return {
-        status: 'PLAFONNE',
-        alertLevel: 'RED',
-        alertMessage:
-          'ALERTE ROUGE : Suspension immédiate et intégrale de toutes les pensions (Assurance retraite + Agirc-Arrco) ! En cas de départ avant l’âge légal (ex: Carrière longue) ou sans taux plein, la reprise d’activité chez le DERNIER EMPLOYEUR impose un délai de carence obligatoire strict de 6 mois (Art. L. 161-22 du CSS). Vos pensions seront totalement suspendues jusqu’au terme des 6 mois.',
-        suspensionApplies: true,
-        waitingMonthsRemaining,
-        waitingPeriodEndDate,
-        ceilingAmount,
-        totalCerRevenue,
-        exceedsCeiling,
-        ecretementAmount,
-        effectiveMonthlyGrossPension: 0, // Pensions suspendues
-        generatesNewRights: false,
-        newRightsDetails:
-          'Aucun nouveau droit généré : en CER plafonné, les cotisations vieillesse sont versées à fonds perdus sans ouverture de pension supplémentaire.',
-        recommendations: [
-          {
-            title: 'Option 1 : Différer la reprise chez l’ancien employeur',
-            description: `Reporter la date de reprise d’activité au ${waitingPeriodEndDate} (après l’écoulement des 6 mois de carence légale).`,
-            badge: 'Recommandé',
-            impact: `Préserve l'intégralité de la pension mensuelle (${totalMonthlyGrossPension} €/mois) sans aucune suspension.`,
-          },
-          {
-            title: 'Option 2 : Reprendre immédiatement chez un NOUVEL employeur',
-            description:
-              'Le délai de carence de 6 mois ne concerne QUE le dernier employeur. Vous pouvez reprendre dès le 1er jour chez toute autre entreprise.',
-            badge: 'Alternative directe',
-            impact:
-              'Maintien des pensions sous réserve du respect du plafond de revenus (plafond : ' +
-              ceilingAmount +
-              ' €/mois).',
-          },
-          {
-            title: 'Option 3 : Décaler la date de départ en retraite',
-            description:
-              'Reporter votre départ en retraite jusqu’à l’âge légal (62 ans 9 mois) pour basculer en CER INTÉGRAL.',
-            badge: 'Optimisation globale',
-            impact:
-              'Supprime tout plafond de revenus et permet d’acquérir de nouveaux droits à la retraite (jusqu’à 2 403 €/an).',
-          },
-        ],
-      };
-    }
-
-    // Reprise chez un tiers ou après 6 mois mais toujours avant l'âge légal
-    const effectiveMonthlyGrossPension = Math.max(
-      0,
-      Number((totalMonthlyGrossPension - ecretementAmount).toFixed(2))
-    );
-
-    return {
-      status: 'PLAFONNE',
-      alertLevel: exceedsCeiling ? 'YELLOW' : 'GREEN',
-      alertMessage: exceedsCeiling
-        ? `CER Plafonné : Dépassement du plafond de cumul (${totalCerRevenue.toFixed(2)} € vs plafond ${ceilingAmount.toFixed(2)} €). Votre pension sera écrêtée de ${ecretementAmount.toFixed(2)} €/mois.`
-        : `CER Plafonné conforme : Vos revenus cumulés (${totalCerRevenue.toFixed(2)} €) sont inférieurs au plafond autorisé (${ceilingAmount.toFixed(2)} €/mois). Pension versée à 100 %.`,
-      suspensionApplies: false,
-      waitingMonthsRemaining: 0,
-      waitingPeriodEndDate,
-      ceilingAmount,
-      totalCerRevenue,
-      exceedsCeiling,
-      ecretementAmount,
-      effectiveMonthlyGrossPension,
-      generatesNewRights: false,
-      newRightsDetails:
-        'En CER plafonné (départ avant l’âge légal), les cotisations vieillesse ne créent aucun nouveau droit.',
-      recommendations: [
-        {
-          title: 'Surveiller le plafond de cumul de revenus',
-          description: `Plafond applicable : dernier salaire (${profile.lastGrossMonthlySalary} €) ou 1,6 SMIC (${REPERES_2026.plafond1_6SmicMensuel} €).`,
-          badge: exceedsCeiling ? 'Action requise' : 'Sous contrôle',
-          impact: exceedsCeiling
-            ? `Ajuster la rémunération ou le temps de travail pour éviter l'écrêtement de ${ecretementAmount} €/mois.`
-            : 'Aucun écrêtement.',
-        },
-      ],
-    };
-  }
-
-  // Cas 2 : Âge légal atteint ET Taux plein -> CER INTÉGRAL
-  if (isTauxPleinAtLegalAge) {
-    const isFormerEmployerWithin6Months =
-      profile.cerFormerEmployer && monthsBetweenDepartureAndResumption < 6;
-
-    return {
-      status: 'INTEGRAL',
-      alertLevel: isFormerEmployerWithin6Months ? 'YELLOW' : 'GREEN',
-      alertMessage: isFormerEmployerWithin6Months
-        ? `CER INTÉGRAL : Cumul sans plafond de ressources. Attention toutefois : pour ouvrir de NOUVEAUX DROITS chez l'ancien employeur (Réforme 2023), un délai de carence de 6 mois s'applique. Vos cotisations actuelles chez cet employeur ne généreront des droits qu'après le ${waitingPeriodEndDate}. Votre pension actuelle reste perçue sans suspension.`
-        : 'CER INTÉGRAL : Cumul sans aucun plafond de salaire ! Vous percevez l’intégralité de vos pensions et vos cotisations actuelles vous ouvrent immédiatement une seconde pension de retraite de base.',
-      suspensionApplies: false,
-      waitingMonthsRemaining: isFormerEmployerWithin6Months ? waitingMonthsRemaining : 0,
-      waitingPeriodEndDate,
-      ceilingAmount: Infinity,
-      totalCerRevenue: totalMonthlyGrossPension + profile.cerNewGrossMonthlySalary,
-      exceedsCeiling: false,
-      ecretementAmount: 0,
-      effectiveMonthlyGrossPension: totalMonthlyGrossPension,
-      generatesNewRights: true,
-      newRightsDetails: `Nouveaux droits à la retraite ouverts (Loi 2023) : plafonnés à 5 % du PASS, soit jusqu'à ${REPERES_2026.plafondNouveauxDroitsCerAnnuel} €/an (${REPERES_2026.plafondNouveauxDroitsCerMensuel} €/mois) de pension de base supplémentaire.`,
-      recommendations: [
-        {
-          title: 'Seconde pension de retraite (Réforme 2023)',
-          description:
-            'Chaque année de cotisation en CER intégral vous permet de demander une nouvelle pension de base sans décote ni abattement.',
-          badge: 'Nouveauté 2023',
-          impact: `Gain potentiel jusqu'à +${REPERES_2026.plafondNouveauxDroitsCerMensuel} € brut par mois.`,
-        },
-      ],
-    };
-  }
-
-  // Cas 3 : Âge légal atteint mais départ avec décote -> CER Plafonné
-  const ceilingAmount = Math.max(
-    profile.lastGrossMonthlySalary,
-    REPERES_2026.plafond1_6SmicMensuel
-  );
-  const totalCerRevenue = totalMonthlyGrossPension + profile.cerNewGrossMonthlySalary;
-  const exceedsCeiling = totalCerRevenue > ceilingAmount;
-  const ecretementAmount = exceedsCeiling ? Number((totalCerRevenue - ceilingAmount).toFixed(2)) : 0;
-  const effectiveMonthlyGrossPension = Math.max(
-    0,
-    Number((totalMonthlyGrossPension - ecretementAmount).toFixed(2))
-  );
-
-  return {
-    status: 'PLAFONNE',
-    alertLevel: 'YELLOW',
-    alertMessage:
-      'CER Plafonné : Vous avez atteint l’âge légal mais n’avez pas le taux plein. Le cumul reste soumis au plafond de revenus et ne crée pas de nouveaux droits.',
-    suspensionApplies: false,
-    waitingMonthsRemaining: 0,
-    waitingPeriodEndDate,
-    ceilingAmount,
-    totalCerRevenue,
-    exceedsCeiling,
-    ecretementAmount,
-    effectiveMonthlyGrossPension,
-    generatesNewRights: false,
-    newRightsDetails:
-      'Pour passer en CER intégral et générer de nouveaux droits, l’obtention du taux plein est indispensable.',
-    recommendations: [
-      {
-        title: 'Travailler des trimestres supplémentaires pour atteindre le taux plein',
-        description: 'Chaque trimestre validé réduit la décote et permet à terme de basculer en CER intégral.',
-        badge: 'Optimisation',
-        impact: 'Permet de lever le plafond de cumul et d’ouvrir de nouveaux droits.',
-      },
-    ],
   };
 }

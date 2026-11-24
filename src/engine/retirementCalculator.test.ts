@@ -55,9 +55,9 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
       expect(cer.alertLevel).toBe('RED');
       expect(cer.suspensionApplies).toBe(true);
       expect(cer.waitingMonthsRemaining).toBe(5); // reprise à M+1, reste 5 mois
-      expect(cer.effectiveMonthlyGrossPension).toBe(0); // Pensions suspendues !
+      expect(cer.paidBaseMonthly).toBe(0);
+      expect(cer.paidComplementaryMonthly).toBeUndefined();
       expect(cer.generatesNewRights).toBe(false);
-      expect(cer.recommendations.length).toBeGreaterThanOrEqual(2);
     });
   });
 
@@ -159,6 +159,7 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
         cerResumptionDate: '2025-08-01', // > 6 mois
         cerFormerEmployer: false,
         cerNewGrossMonthlySalary: 5000,
+        cerAllPensionsLiquidated: true,
       };
 
       const res = calculateRetirement(profileIntegral, SAKURA_CAREER);

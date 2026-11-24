@@ -50,7 +50,14 @@ export const App: React.FC = () => {
 
   // ─── Profile / career updates ──────────────────────────────────────────
   const handleUpdateProfile = (updated: Partial<UserProfile>) => {
-    setProfile((prev) => ({ ...prev, ...updated }));
+    setProfile((prev) => {
+      const periodChanged =
+        (updated.birthDate !== undefined && updated.birthDate !== prev.birthDate) ||
+        (updated.desiredDepartureDate !== undefined && updated.desiredDepartureDate !== prev.desiredDepartureDate) ||
+        ('cerFirstBasePensionDate' in updated && updated.cerFirstBasePensionDate !== prev.cerFirstBasePensionDate);
+
+      return { ...prev, ...(periodChanged ? { cerIncomeByPeriod: undefined } : {}), ...updated };
+    });
     setCurrentScenario('custom');
   };
 
