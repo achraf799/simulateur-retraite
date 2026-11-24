@@ -122,14 +122,6 @@ export const App: React.FC = () => {
 
   const handleGoToBilan = () => goToStep(5);
 
-  // ─── Computed helpers for child components ─────────────────────────────
-  const liquidationYear = profile.desiredDepartureDate
-    ? new Date(profile.desiredDepartureDate).getFullYear()
-    : 2025;
-
-  const samYearsCount = calculationResult.samYearsCount;
-  const sam = calculationResult.sam;
-
   return (
     <div
       className={`min-h-screen bg-slate-50 flex flex-col ${
@@ -165,9 +157,7 @@ export const App: React.FC = () => {
             onChangeCareer={handleUpdateCareer}
             onExportCsv={handleExportCsv}
             onImportCsv={handleImportCsv}
-            samYearsCount={samYearsCount}
-            sam={sam}
-            liquidationYear={liquidationYear}
+            samAnalysis={calculationResult.samAnalysis}
           />
         )}
 

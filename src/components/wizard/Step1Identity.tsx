@@ -134,7 +134,10 @@ export const Step1Identity: React.FC<Step1IdentityProps> = ({ profile, onChangeP
 
   const handleChildrenChange = (delta: number) => {
     const nextVal = Math.max(0, Math.min(15, profile.childrenCount + delta));
-    onChangeProfile({ childrenCount: nextVal });
+    onChangeProfile({
+      childrenCount: nextVal,
+      samEligibleChildren: (profile.samEligibleChildren ?? 0) > nextVal ? undefined : profile.samEligibleChildren,
+    });
   };
 
   const birthYear = profile.birthDate ? parseInt(profile.birthDate.split('-')[0], 10) : 1963;
@@ -357,6 +360,31 @@ export const Step1Identity: React.FC<Step1IdentityProps> = ({ profile, onChangeP
             </span>
           </div>
         </label>
+
+        {profile.childrenCount > 0 && (
+          <label className="block text-sm font-semibold text-slate-800">
+            Enfants avec une majoration admissible pour le salaire annuel moyen
+            <select
+              value={profile.samEligibleChildren ?? ''}
+              onChange={(event) => {
+                const value = event.target.value;
+                onChangeProfile({
+                  samEligibleChildren: value === '1' ? 1 : value === '2' ? 2 : value === '0' ? 0 : undefined,
+                });
+              }}
+              className="mt-1 block w-full max-w-xs rounded-lg border border-slate-300 bg-white p-2"
+            >
+              <option value="">À confirmer</option>
+              <option value="0">Aucun</option>
+              <option value="1">Un enfant</option>
+              {profile.childrenCount >= 2 && <option value="2">Deux enfants ou plus</option>}
+            </select>
+            <span className="mt-1 block text-xs font-normal text-slate-600">
+              Pour une retraite à partir du 1er septembre 2026, indiquez le nombre d’enfants
+              pour lesquels la caisse vous a attribué une majoration ou une bonification admissible.
+            </span>
+          </label>
+        )}
 
         {/* Badge impact (sans Sparkles) */}
         {profile.childrenCount > 0 && (

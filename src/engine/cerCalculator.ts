@@ -35,6 +35,7 @@ export function analyzeCer(
   requiredQuarters: number,
   validatedQuarters: number,
   retirementEligible: boolean,
+  basePensionEstimated: boolean,
   baseMonthly: number,
   complementaryMonthly: number,
 ): CerAnalysisResult {
@@ -71,6 +72,9 @@ export function analyzeCer(
   }
   if (!retirementEligible && firstPension === departure) {
     return unavailable('Le départ simulé ne permet pas de liquider la pension. Modifiez la date de départ pour évaluer le cumul.');
+  }
+  if (!basePensionEstimated) {
+    return unavailable('Complétez le relevé ou saisissez un salaire annuel moyen estimé pour chiffrer le cumul.');
   }
   if (profile.cerSeparateComplementaryPension) {
     return unavailable('Une liquidation de la complémentaire à une autre date nécessite de vérifier le régime de cumul applicable.');

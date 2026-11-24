@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { CareerYear, UserProfile, Currency, EventType, Regime } from '../../types/retirement';
-import { getPassForYear, FRF_TO_EUR_RATE } from '../../constants/passHistory';
-import { getCnavCoeff } from '../../constants/cnavCoefficients';
+import { CareerYear, UserProfile, Currency, SamAnalysis, SamIncomeKind, SamYear } from '../../types/retirement';
+import { samIncomeKind } from '../../engine/annualSalary';
 import { FormulaTooltip } from '../common/FormulaTooltip';
 import {
   Zap,
@@ -15,6 +14,17 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
+const samYearLabels: Record<SamYear['status'], string> = {
+  selected: 'Retenue',
+  outsideTopYears: 'Hors meilleures années',
+  beforeCareer: 'Hors période',
+  fromLiquidation: 'Liquidation ou année suivante',
+  buyback: 'Rachat excluant l’année',
+  noPensionableIncome: 'Aucun revenu admissible',
+  belowThreshold: 'Sous le seuil d’un trimestre',
+  unconfirmedThreshold: 'Trimestre à confirmer',
+};
+
 interface Step2CareerProps {
   profile: UserProfile;
   career: CareerYear[];
@@ -22,9 +32,7 @@ interface Step2CareerProps {
   onChangeCareer: (updated: CareerYear[]) => void;
   onExportCsv: () => void;
   onImportCsv: (csvText: string) => void;
-  samYearsCount: number;
-  sam: number;
-  liquidationYear: number;
+  samAnalysis: SamAnalysis;
 }
 
 export const Step2Career: React.FC<Step2CareerProps> = ({
@@ -34,11 +42,11 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   onChangeCareer,
   onExportCsv,
   onImportCsv,
-  samYearsCount,
-  sam,
-  liquidationYear,
+  samAnalysis,
 }) => {
   const isExpress = profile.careerMode === 'express';
+  const sam = samAnalysis.amount;
+  const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
   const [showDetailedTable, setShowDetailedTable] = useState<boolean>(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -71,31 +79,8 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
     onChangeProfile({ expressData: nextData });
   };
 
-  // Recalcul d'une ligne du tableau détaillé
   const updateCareerRow = (index: number, changes: Partial<CareerYear>) => {
-    const nextCareer = [...career];
-    const currentRow = { ...nextCareer[index], ...changes };
-
-    const grossIncomeEur =
-      currentRow.currency === 'FRF'
-        ? Number((currentRow.grossIncome / FRF_TO_EUR_RATE).toFixed(2))
-        : currentRow.grossIncome;
-
-    const passEur = getPassForYear(currentRow.year);
-    const retainedSalaryEur = Math.min(grossIncomeEur, passEur);
-    const cnavCoeff = getCnavCoeff(currentRow.year, liquidationYear);
-    const revaluedSalaryEur = Number((retainedSalaryEur * cnavCoeff).toFixed(2));
-
-    nextCareer[index] = {
-      ...currentRow,
-      grossIncomeEur,
-      passEur,
-      retainedSalaryEur,
-      cnavCoeff,
-      revaluedSalaryEur,
-    };
-
-    onChangeCareer(nextCareer);
+    onChangeCareer(career.map((row, rowIndex) => rowIndex === index ? { ...row, ...changes } : row));
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -332,7 +317,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               <div className="text-xs text-slate-600 mt-1">
                 {totalContributed} trimestres cotisés (RACL) •{' '}
                 {totalPoints.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts Agirc-Arrco •{' '}
-                SAM calculé ≈ <strong>{sam.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong>
+                SAM · <strong>{samAnalysis.source === 'unavailable' ? 'indisponible' : euro.format(sam)}</strong>
               </div>
             </div>
 
@@ -365,6 +350,43 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
             </div>
           </div>
 
+          {samAnalysis.parentAdjustmentPending && (
+            <p className="text-xs text-amber-900">
+              Le plafond de 25 années est utilisé en attendant la confirmation des majorations pour enfant à l’étape Identité.
+            </p>
+          )}
+          {samAnalysis.years.length > 0 && (
+            <details className="rounded-xl border border-slate-200">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-800">
+                Années utilisées pour le salaire annuel moyen
+              </summary>
+              <div className="max-h-96 overflow-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="sticky top-0 bg-slate-50 text-slate-700">
+                    <tr>
+                      <th scope="col" className="p-2">Année</th>
+                      <th scope="col" className="p-2 text-right">Revenus au compte</th>
+                      <th scope="col" className="p-2 text-right">Après plafonnement</th>
+                      <th scope="col" className="p-2 text-right">Revalorisé</th>
+                      <th scope="col" className="p-2">Décision</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {samAnalysis.years.map((year) => (
+                      <tr key={year.year} className={year.status === 'selected' ? 'bg-emerald-50' : undefined}>
+                        <th scope="row" className="p-2">{year.year}</th>
+                        <td className="p-2 text-right">{euro.format(year.salaryEur)}</td>
+                        <td className="p-2 text-right">{euro.format(year.retainedSalaryEur)}</td>
+                        <td className="p-2 text-right">{euro.format(year.revaluedSalaryEur)}</td>
+                        <td className="p-2">{samYearLabels[year.status]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
+
           {/* Bouton Accordéon dépliable pour le tableau (FERMÉ PAR DÉFAUT) */}
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <button
@@ -373,9 +395,9 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               className="w-full flex items-center justify-between px-5 py-3.5 bg-slate-100/70 hover:bg-slate-100 transition-colors text-left font-bold text-xs text-slate-700"
             >
               <span className="flex items-center gap-2">
-                <span>{showDetailedTable ? 'Masquer' : 'Voir / modifier'} le tableau détaillé année par année (1979-2024)</span>
+                <span>{showDetailedTable ? 'Masquer' : 'Voir / modifier'} les lignes du relevé</span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                  Top {samYearsCount} SAM identifié
+                  {samAnalysis.topYears.length} / {samAnalysis.yearLimit} années retenues
                 </span>
               </span>
               {showDetailedTable ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -383,6 +405,10 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
 
             {showDetailedTable && (
               <div className="overflow-x-auto max-h-96 p-2 border-t border-slate-200">
+                <p className="mb-2 text-xs text-slate-600">
+                  Pour une année avec interruption, sélectionnez « Revenu inscrit au compte » si le montant
+                  correspond à un salaire ou à une indemnité admissible portée au relevé.
+                </p>
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-50 text-slate-600 sticky top-0 font-bold border-b border-slate-200">
                     <tr>
@@ -396,21 +422,16 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                       <th className="py-2 px-2 text-center">Trim. V</th>
                       <th className="py-2 px-2 text-center">Trim. C</th>
                       <th className="py-2 px-2 text-right">Points</th>
-                      <th className="py-2 px-2 text-center">Top {samYearsCount}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {career.map((row, idx) => (
-                      <tr
-                        key={row.year}
-                        className={`hover:bg-slate-50 ${
-                          row.isTopYear ? 'bg-amber-50/50 font-medium' : ''
-                        }`}
-                      >
+                      <tr key={idx} className="hover:bg-slate-50">
                         <td className="py-1.5 px-2.5 font-bold text-slate-800">{row.year}</td>
                         <td className="py-1.5 px-2">
                           <select
                             value={row.currency}
+                            aria-label={`Devise ${row.year}`}
                             onChange={(e) =>
                               updateCareerRow(idx, { currency: e.target.value as Currency })
                             }
@@ -424,23 +445,26 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                           <input
                             type="number"
                             value={row.grossIncome}
+                            aria-label={`Revenu brut ${row.year}`}
+                            min={0}
                             onChange={(e) =>
-                              updateCareerRow(idx, { grossIncome: parseFloat(e.target.value) || 0 })
+                              updateCareerRow(idx, { grossIncome: Math.max(0, Number(e.target.value) || 0) })
                             }
                             className="w-24 text-right text-[11px] bg-white border border-slate-200 rounded px-1 py-0.5"
                           />
                         </td>
-                        <td className="py-1.5 px-2.5 text-right font-mono text-slate-400">
-                          {row.passEur.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
-                        </td>
-                        <td className="py-1.5 px-2.5 text-right font-mono text-slate-700">
-                          {row.retainedSalaryEur.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
-                        </td>
-                        <td className="py-1.5 px-2 text-right font-mono text-slate-500">
-                          {row.cnavCoeff.toFixed(3)}
-                        </td>
-                        <td className="py-1.5 px-2.5 text-right font-mono font-bold text-institution-800">
-                          {row.revaluedSalaryEur.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+                        <td className="px-2 text-slate-700">{row.regime}</td>
+                        <td className="px-2">
+                          <select
+                            aria-label={`Traitement SAM ${row.year}`}
+                            value={samIncomeKind(row)}
+                            onChange={(event) => updateCareerRow(idx, { samIncomeKind: event.target.value as SamIncomeKind })}
+                            className="rounded border border-slate-200 bg-white px-1 py-0.5 text-[11px]"
+                          >
+                            <option value="salary">Revenu inscrit au compte</option>
+                            <option value="excluded">Revenu hors SAM</option>
+                            <option value="buyback">Année exclue pour rachat</option>
+                          </select>
                         </td>
                         <td className="py-1.5 px-2 text-center">
                           <input
@@ -473,13 +497,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                         <td className="py-1.5 px-2 text-right font-mono">
                           {row.agircPoints.toFixed(1)}
                         </td>
-                        <td className="py-1.5 px-2 text-center">
-                          {row.isTopYear && (
-                            <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-1.5 py-0.2 rounded-full">
-                              Top {samYearsCount}
-                            </span>
-                          )}
-                        </td>
+
                       </tr>
                     ))}
                   </tbody>

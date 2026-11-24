@@ -1,6 +1,5 @@
 import { CareerYear, UserProfile, CalculationResult } from '../types/retirement';
-import { getPassForYear, FRF_TO_EUR_RATE } from '../constants/passHistory';
-import { getCnavCoeff } from '../constants/cnavCoefficients';
+import { calculateAnnualSalary } from './annualSalary';
 import { analyzeCer } from './cerCalculator';
 import { analyzeLongCareer, firstPensionDate } from './longCareer';
 import { addMonths, validDate } from '../utils/civilDates';
@@ -87,30 +86,11 @@ export function calculateRetirement(
   let totalContributedQuarters = 0;
   let agircTotalPoints = 0;
 
-  // Recalcul des lignes de carrière avec devises et PASS
-  const processedCareer: CareerYear[] = rawCareer.map((row) => {
-    const grossIncomeEur =
-      row.currency === 'FRF'
-        ? Number((row.grossIncome / FRF_TO_EUR_RATE).toFixed(2))
-        : row.grossIncome;
-    const passEur = getPassForYear(row.year);
-    const retainedSalaryEur = Math.min(grossIncomeEur, passEur);
-    const cnavCoeff = getCnavCoeff(row.year, liquidationYear);
-    const revaluedSalaryEur = Number((retainedSalaryEur * cnavCoeff).toFixed(2));
-
+  for (const row of rawCareer) {
     totalValidatedQuartersFromCareer += row.validatedQuarters;
     totalContributedQuarters += row.contributedQuarters;
     agircTotalPoints += row.agircPoints;
-
-    return {
-      ...row,
-      grossIncomeEur,
-      passEur,
-      retainedSalaryEur,
-      cnavCoeff,
-      revaluedSalaryEur,
-    };
-  });
+  }
 
   // Si Mode Express : remplacement direct par les valeurs saisies
   if (isExpressMode && profile.expressData) {
@@ -121,7 +101,7 @@ export function calculateRetirement(
 
   const totalValidatedQuarters = totalValidatedQuartersFromCareer;
 
-  const longCareer = analyzeLongCareer(profile, processedCareer, legalAgeTotalMonths, requiredQuarters);
+  const longCareer = analyzeLongCareer(profile, rawCareer, legalAgeTotalMonths, requiredQuarters);
   const isCarriereLongue = longCareer.status === 'eligible';
   const reachesLegalAge = validDate(profile.birthDate) && validDate(profile.desiredDepartureDate)
     && profile.desiredDepartureDate >= firstPensionDate(profile.birthDate, legalAgeTotalMonths);
@@ -144,36 +124,8 @@ export function calculateRetirement(
     eligibilityStatus = 'ineligible';
   }
 
-  // 5. Nombre d'années N pour le SAM
-  // Règle générale : 25 meilleures années
-  // Règle LFSS 2026 si départ >= 01/09/2026 et enfants élevés : 24 ans (1 enfant) ou 23 ans (>= 2 enfants)
-  let samYearsCount = 25;
-  if (isSuspension2026 && profile.childrenCount >= 1) {
-    samYearsCount = profile.childrenCount === 1 ? 24 : 23;
-  }
-
-  let sam = 0;
-  let topYearsList: number[] = [];
-
-  if (isExpressMode && profile.expressData) {
-    sam = profile.expressData.estimatedSam;
-  } else {
-    // Tri des salaires revalorisés pour extraire les N meilleures années
-    const sortedCareer = [...processedCareer].sort(
-      (a, b) => b.revaluedSalaryEur - a.revaluedSalaryEur
-    );
-    topYearsList = sortedCareer.slice(0, samYearsCount).map((r) => r.year);
-
-    // Marquage isTopYear sur la carrière
-    processedCareer.forEach((r) => {
-      r.isTopYear = topYearsList.includes(r.year);
-    });
-
-    const sumTopSalaries = sortedCareer
-      .slice(0, samYearsCount)
-      .reduce((sum, r) => sum + r.revaluedSalaryEur, 0);
-    sam = samYearsCount > 0 ? Number((sumTopSalaries / samYearsCount).toFixed(2)) : 0;
-  }
+  const samAnalysis = calculateAnnualSalary(profile, rawCareer, birthYear, liquidationYear);
+  const sam = samAnalysis.amount;
 
   // 6. Liquidation, décote et surcote
   let liquidationRate = 0.50; // Taux plein
@@ -277,6 +229,7 @@ export function calculateRetirement(
     requiredQuarters,
     totalValidatedQuarters,
     eligibilityStatus !== 'ineligible',
+    samAnalysis.source !== 'unavailable',
     basePensionMonthlyGross,
     agircMonthlyGross
   );
@@ -302,9 +255,10 @@ export function calculateRetirement(
     carriereLongueDetails: longCareer.details,
     eligibilityStatus,
     appliedRule,
-    samYearsCount,
+    samYearsCount: samAnalysis.yearLimit,
     sam,
-    topYears: topYearsList,
+    samAnalysis,
+    topYears: samAnalysis.topYears,
     liquidationRate,
     decoteQuarters,
     surcoteQuarters,

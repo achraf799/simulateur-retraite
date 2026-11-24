@@ -37,6 +37,8 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
 }) => {
   const [showFormulasAccordion, setShowFormulasAccordion] = useState(false);
   const cer = result.cerAnalysis;
+  const sam = result.samAnalysis;
+  const samAvailable = sam.source !== 'unavailable';
 
   // Données Graphique Unique Épuré : Dernier salaire vs Pension
   const chartData = [
@@ -138,43 +140,44 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
 
       {/* 2. CHIFFRES CLÉS EN GRAND & 2 PETITES CARTES EN DESSOUS */}
       <div className="space-y-4">
-        {/* Grande carte Totale */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-7 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
-                Pension Totale Estimée (Base + Complémentaire)
-              </span>
-              <div className="text-4xl font-black text-institution-800 tracking-tight mt-1">
-                {result.totalMonthlyGross.toLocaleString('fr-FR', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}{' '}
-                <span className="text-xl font-normal text-slate-500">€ brut / mois</span>
+        {samAvailable && (
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-7 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                  Pension Totale Estimée (Base + Complémentaire)
+                </span>
+                <div className="text-4xl font-black text-institution-800 tracking-tight mt-1">
+                  {result.totalMonthlyGross.toLocaleString('fr-FR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{' '}
+                  <span className="text-xl font-normal text-slate-500">€ brut / mois</span>
+                </div>
+                <div className="text-sm font-bold text-emerald-700 mt-1">
+                  ≈{' '}
+                  {result.totalMonthlyNet.toLocaleString('fr-FR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{' '}
+                  € net estimé avant impôt sur le revenu
+                </div>
               </div>
-              <div className="text-sm font-bold text-emerald-700 mt-1">
-                ≈{' '}
-                {result.totalMonthlyNet.toLocaleString('fr-FR', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}{' '}
-                € net estimé avant impôt sur le revenu
-              </div>
-            </div>
 
-            {/* Badge Taux de remplacement */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-right sm:text-right shrink-0">
-              <span className="text-xs text-slate-500 block">Taux de remplacement brut</span>
-              <div className="text-3xl font-black text-tealbrand-700 mt-0.5">
-                {result.grossReplacementRate}{' '}
-                <span className="text-base font-bold text-tealbrand-600">%</span>
+              {/* Badge Taux de remplacement */}
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-right sm:text-right shrink-0">
+                <span className="text-xs text-slate-500 block">Taux de remplacement brut</span>
+                <div className="text-3xl font-black text-tealbrand-700 mt-0.5">
+                  {result.grossReplacementRate}{' '}
+                  <span className="text-base font-bold text-tealbrand-600">%</span>
+                </div>
+                <span className="text-[11px] text-slate-400 block mt-0.5">
+                  sur dernier salaire ({profile.lastGrossMonthlySalary.toLocaleString('fr-FR')} €)
+                </span>
               </div>
-              <span className="text-[11px] text-slate-400 block mt-0.5">
-                sur dernier salaire ({profile.lastGrossMonthlySalary.toLocaleString('fr-FR')} €)
-              </span>
             </div>
           </div>
-        </div>
+        )}
 
         {/* 2 Petites cartes : Base & Agirc-Arrco */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -192,22 +195,31 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 )}
               </div>
 
-              <div className="text-2xl font-black text-slate-900 tracking-tight">
-                {result.basePensionMonthlyGross.toLocaleString('fr-FR', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}{' '}
-                <span className="text-sm font-normal text-slate-500">€/mois brut</span>
-              </div>
-              <div className="text-xs text-emerald-700 font-semibold mt-0.5">
-                ≈ {result.basePensionMonthlyNet.toLocaleString('fr-FR')} € net (-9,1 % cotisations)
-              </div>
+              {samAvailable ? (
+                <>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight">
+                    {formatEuros(result.basePensionMonthlyGross)} <span className="text-sm font-normal text-slate-500">brut / mois</span>
+                  </div>
+                  <div className="mt-0.5 text-xs font-semibold text-emerald-700">
+                    ≈ {formatEuros(result.basePensionMonthlyNet)} net
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-slate-700">
+                  Pension de base indéterminée. Complétez le relevé ou saisissez un salaire annuel moyen en mode express.
+                </p>
+              )}
             </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex justify-between">
-              <span>SAM ({result.samYearsCount} ans) :</span>
-              <strong className="text-slate-800">{result.sam.toLocaleString('fr-FR')} €</strong>
-            </div>
+            {samAvailable && (
+              <div className="mt-4 flex justify-between gap-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                <span>{sam.source === 'express' ? 'SAM saisi' : `SAM · ${sam.topYears.length} année(s) retenue(s) sur ${sam.yearLimit}`}</span>
+                <strong className="text-slate-800">{formatEuros(sam.amount)}</strong>
+              </div>
+            )}
+            {sam.source !== 'express' && sam.parentAdjustmentPending && (
+              <p className="mt-2 text-xs text-amber-800">La réduction du plafond pour enfant reste à confirmer.</p>
+            )}
           </div>
 
           {/* Carte Agirc-Arrco */}
@@ -310,34 +322,35 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
         </section>
       )}
 
-      {/* 4. 1 SEUL GRAPHIQUE ÉPURÉ */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-4">
-        <div>
-          <h3 className="font-bold text-sm text-slate-900">
-            Comparatif Visuel : Dernier Salaire Brut vs Retraite Totale
-          </h3>
-          <p className="text-xs text-slate-500">
-            Visualisation directe du maintien de niveau de vie entre votre activité et votre retraite.
-          </p>
-        </div>
+      {samAvailable && (
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-4">
+          <div>
+            <h3 className="font-bold text-sm text-slate-900">
+              Comparatif Visuel : Dernier Salaire Brut vs Retraite Totale
+            </h3>
+            <p className="text-xs text-slate-500">
+              Visualisation directe du maintien de niveau de vie entre votre activité et votre retraite.
+            </p>
+          </div>
 
-        <div className="h-60 w-full pt-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-              <XAxis type="number" unit=" €" tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" hide />
-              <Tooltip
-                formatter={(val: number) => [`${val.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`]}
-              />
-              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-              <Bar dataKey="Dernier salaire brut" fill="#64748b" radius={[0, 6, 6, 0]} />
-              <Bar dataKey="Retraite de base (LURA)" stackId="pension" fill="#1d5e9b" />
-              <Bar dataKey="Agirc-Arrco" stackId="pension" fill="#0d9488" radius={[0, 6, 6, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="h-60 w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                <XAxis type="number" unit=" €" tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="name" hide />
+                <Tooltip
+                  formatter={(val: number) => [`${val.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`]}
+                />
+                <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
+                <Bar dataKey="Dernier salaire brut" fill="#64748b" radius={[0, 6, 6, 0]} />
+                <Bar dataKey="Retraite de base (LURA)" stackId="pension" fill="#1d5e9b" />
+                <Bar dataKey="Agirc-Arrco" stackId="pension" fill="#0d9488" radius={[0, 6, 6, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 5. ACCORDÉON FERMÉ PAR DÉFAUT : DÉTAIL DES FORMULES (POUR LE JURY) */}
       <div className="border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-xs">
@@ -365,27 +378,24 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 <span>1. Formule du Salaire Annuel Moyen (SAM) :</span>
                 <span className="text-[11px] font-mono text-tealbrand-700">Art. R. 351-29 CSS</span>
               </h4>
-              <div className="p-3 bg-slate-900 text-amber-300 font-mono rounded-xl text-xs">
-                SAM = Somme(MIN(Salaire_Annuel_EUR, PASS_Année) × Coeff_CNAV) / {result.samYearsCount}
-              </div>
-              <p className="text-slate-600 text-[11px]">
-                Pour Sakura : moyenne calculée sur les 25 meilleures années revalorisées = <strong>{result.sam.toLocaleString('fr-FR')} €</strong>.
-              </p>
+              {sam.source === 'career' ? (
+                <div className="rounded-xl bg-slate-900 p-3 font-mono text-amber-300">
+                  SAM = somme des salaires revalorisés des années retenues ÷ {sam.topYears.length} = {formatEuros(sam.amount)}
+                </div>
+              ) : (
+                <p>{sam.source === 'express' ? `SAM saisi en mode express · ${formatEuros(sam.amount)}` : 'Aucune année admissible pour établir la moyenne.'}</p>
+              )}
             </div>
 
-            {/* Formule 2 : Retraite de Base */}
-            <div className="space-y-2">
-              <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                <span>2. Formule de la Retraite de Base CNAV :</span>
-                <span className="text-[11px] font-mono text-tealbrand-700">Art. L. 351-1 CSS</span>
-              </h4>
-              <div className="p-3 bg-slate-900 text-tealbrand-300 font-mono rounded-xl text-xs">
-                Base = SAM × Taux ({result.liquidationRate * 100} %) × ({Math.min(result.totalValidatedQuarters, result.requiredQuarters)} / {result.requiredQuarters}) × 1,10 (Enfants) / 12
+            {samAvailable && (
+              <div className="space-y-2">
+                <h4 className="font-bold text-slate-900">2. Formule de la retraite de base</h4>
+                <div className="rounded-xl bg-slate-900 p-3 font-mono text-tealbrand-300">
+                  Base mensuelle = SAM × taux × proratisation × (1 + surcote) ÷ 12 + majoration enfants
+                </div>
+                <p>Montant estimé · <strong>{formatEuros(result.basePensionMonthlyGross)} / mois</strong>.</p>
               </div>
-              <p className="text-slate-600 text-[11px]">
-                {result.sam.toLocaleString('fr-FR')} € × 50 % × 1,0 × 1,10 / 12 = <strong>{result.basePensionMonthlyGross} €/mois</strong>.
-              </p>
-            </div>
+            )}
 
             {/* Formule 3 : Retraite Complémentaire Agirc-Arrco */}
             <div className="space-y-2">

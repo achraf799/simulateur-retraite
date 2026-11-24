@@ -4,6 +4,8 @@ export type Regime = 'CNAV' | 'MSA';
 
 export type EventType = 'Activité' | 'Maladie/AT' | 'Maternité' | 'Chômage' | 'AVPF';
 
+export type SamIncomeKind = 'salary' | 'excluded' | 'buyback';
+
 export interface CareerYear {
   year: number;
   currency: Currency;
@@ -18,6 +20,7 @@ export interface CareerYear {
   contributedQuarters: number; // 0 to 4 (cotisés ou réputés cotisés pour carrière longue)
   agircPoints: number;
   eventType: EventType;
+  samIncomeKind?: SamIncomeKind;
   isTopYear?: boolean; // top N best years for SAM
 }
 
@@ -63,6 +66,7 @@ export interface UserProfile {
   birthDate: string; // YYYY-MM-DD
   sex: 'M' | 'F';
   childrenCount: number;
+  samEligibleChildren?: 0 | 1 | 2; // 2 = deux enfants ou plus
   motherBonusQuarters: boolean; // 8 trimestres par enfant pour la mère (Art. L. 351-4 CSS)
   desiredDepartureDate: string; // YYYY-MM-DD
   lastGrossMonthlySalary: number; // EUR
@@ -124,6 +128,26 @@ export interface CerAnalysisResult {
   }>;
 }
 
+export interface SamYear {
+  year: number;
+  salaryEur: number;
+  ceilingEur?: number;
+  retainedSalaryEur: number;
+  coefficient: number;
+  revaluedSalaryEur: number;
+  status: 'selected' | 'outsideTopYears' | 'beforeCareer' | 'fromLiquidation' | 'buyback'
+    | 'noPensionableIncome' | 'belowThreshold' | 'unconfirmedThreshold';
+}
+
+export interface SamAnalysis {
+  source: 'career' | 'express' | 'unavailable';
+  amount: number;
+  yearLimit: number;
+  parentAdjustmentPending: boolean;
+  years: SamYear[];
+  topYears: number[];
+}
+
 export interface CalculationResult {
   ageAtDeparture: {
     years: number;
@@ -147,6 +171,7 @@ export interface CalculationResult {
   appliedRule: 'Réforme 2023' | 'Suspension LFSS 2026';
   samYearsCount: number; // 25, 24 ou 23
   sam: number;
+  samAnalysis: SamAnalysis;
   topYears: number[];
   liquidationRate: number; // 0.50 (taux plein) ou décoté
   decoteQuarters: number;
