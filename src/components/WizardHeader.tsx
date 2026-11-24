@@ -64,11 +64,15 @@ export const WizardHeader: React.FC<WizardHeaderProps> = ({
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
               }`}
             >
+<<<<<<< HEAD
               <Sparkles className="w-3 h-3 text-amber-300" />
               <span>Charger Cas Sakura</span>
+=======
+              <span>Cas Sakura</span>
+>>>>>>> 0dd3e94 (feat: synchronisation NIR, saisie manuelle des salaires, règles 2025 et rapport d'audit Sakura)
             </button>
 
-            {/* Raccourci 2 : Cas LFSS 2026 */}
+            {/* Raccourci 2 : Cas Test 2025 */}
             <button
               type="button"
               onClick={() => onLoadScenario('lfss2026')}
@@ -78,7 +82,7 @@ export const WizardHeader: React.FC<WizardHeaderProps> = ({
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
               }`}
             >
-              <span>Cas Test 2026</span>
+              <span>Cas Test 2025</span>
             </button>
 
             {/* Raccourci 3 : Nouvelle simulation */}

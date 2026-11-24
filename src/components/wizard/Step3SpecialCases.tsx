@@ -11,6 +11,7 @@ import {
   Layers,
   CheckCircle2,
   Info,
+  Sliders,
 } from 'lucide-react';
 
 interface Step3SpecialCasesProps {

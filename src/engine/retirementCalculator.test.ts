@@ -58,22 +58,21 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
     });
   });
 
-  describe('2. Validation du Cas Test LFSS 2026 (Suspension & 23 meilleures années)', () => {
+  describe('2. Validation du Cas Test 2025 (Barème Réforme 2023 & 25 meilleures années)', () => {
     const result = calculateRetirement(LFSS_2026_PROFILE, LFSS_2026_CAREER);
 
-    it('doit appliquer la règle de suspension LFSS 2026 pour un départ au 01/10/2026', () => {
-      expect(result.appliedRule).toBe('Suspension LFSS 2026');
+    it('doit appliquer le barème Réforme 2023 en vigueur en 2025', () => {
+      expect(result.appliedRule).toBe('Réforme 2023');
       // Pour une femme née en mars 1965 (janv-mars) :
-      // Réforme 2023 : 63 ans 3 mois / 172 trim.
-      // Suspension LFSS 2026 : 62 ans 9 mois / 170 trim.
-      expect(result.legalAge.years).toBe(62);
-      expect(result.legalAge.months).toBe(9);
-      expect(result.requiredQuarters).toBe(170);
+      // Réforme 2023 (en vigueur en 2025) : 63 ans 3 mois / 172 trim.
+      expect(result.legalAge.years).toBe(63);
+      expect(result.legalAge.months).toBe(3);
+      expect(result.requiredQuarters).toBe(172);
     });
 
-    it('doit calculer le SAM sur 23 meilleures années (LFSS 2026 avec 2 enfants)', () => {
-      expect(result.samYearsCount).toBe(23);
-      expect(result.topYears.length).toBe(23);
+    it('doit calculer le SAM sur les 25 meilleures années (règle 2025)', () => {
+      expect(result.samYearsCount).toBe(25);
+      expect(result.topYears.length).toBe(25);
     });
   });
 

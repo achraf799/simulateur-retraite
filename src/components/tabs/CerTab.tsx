@@ -10,7 +10,7 @@ import {
   CheckCircle2,
   Calendar,
   Clock,
-  Sparkles,
+  
   ArrowRight,
   ShieldAlert,
   Building2,
@@ -301,7 +301,7 @@ export const CerTab: React.FC<CerTabProps> = ({
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-tealbrand-600" />
+              
               <h3 className="font-semibold text-slate-800 text-sm">
                 3. Création de Nouveaux Droits
               </h3>

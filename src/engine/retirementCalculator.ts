@@ -36,12 +36,8 @@ export function calculateRetirement(
   const ageYears = Math.floor(ageTotalMonths / 12);
   const ageMonths = ageTotalMonths % 12;
 
-  // 2. Barème de la génération : Réforme 2023 vs Suspension LFSS 2026
-  // La suspension LFSS 2026 s'applique pour tout départ à compter du 01/09/2026
-  const isSuspension2026 = profile.desiredDepartureDate >= '2026-09-01';
-  const appliedRule: 'Réforme 2023' | 'Suspension LFSS 2026' = isSuspension2026
-    ? 'Suspension LFSS 2026'
-    : 'Réforme 2023';
+  // 2. Barème de la génération selon la Réforme 2023 (en vigueur en 2025)
+  const appliedRule: 'Réforme 2023' | 'Suspension LFSS 2026' = 'Réforme 2023';
 
   // Recherche dans la table de génération
   const genScale = GENERATION_SCALES.find((s) => {
@@ -56,15 +52,9 @@ export function calculateRetirement(
   let requiredQuarters = 172;
 
   if (genScale) {
-    if (isSuspension2026) {
-      legalAgeYears = genScale.legalAgeYears2026;
-      legalAgeMonths = genScale.legalAgeMonths2026;
-      requiredQuarters = genScale.quartersRequired2026;
-    } else {
-      legalAgeYears = genScale.legalAgeYears2023;
-      legalAgeMonths = genScale.legalAgeMonths2023;
-      requiredQuarters = genScale.quartersRequired2023;
-    }
+    legalAgeYears = genScale.legalAgeYears2023;
+    legalAgeMonths = genScale.legalAgeMonths2023;
+    requiredQuarters = genScale.quartersRequired2023;
   } else if (birthYear <= 1960) {
     legalAgeYears = 62;
     legalAgeMonths = 0;
@@ -124,8 +114,37 @@ export function calculateRetirement(
     eligibilityStatus = 'ineligible';
   }
 
+<<<<<<< HEAD
   const samAnalysis = calculateAnnualSalary(profile, rawCareer, birthYear, liquidationYear);
   const sam = samAnalysis.amount;
+=======
+  // 5. Nombre d'années N pour le SAM
+  // Règle générale en vigueur en 2025 : 25 meilleures années (plafonnées au PASS et revalorisées)
+  const samYearsCount = 25;
+
+  let sam = 0;
+  let topYearsList: number[] = [];
+
+  if (isExpressMode && profile.expressData) {
+    sam = profile.expressData.estimatedSam;
+  } else {
+    // Tri des salaires revalorisés pour extraire les N meilleures années
+    const sortedCareer = [...processedCareer].sort(
+      (a, b) => b.revaluedSalaryEur - a.revaluedSalaryEur
+    );
+    topYearsList = sortedCareer.slice(0, samYearsCount).map((r) => r.year);
+
+    // Marquage isTopYear sur la carrière
+    processedCareer.forEach((r) => {
+      r.isTopYear = topYearsList.includes(r.year);
+    });
+
+    const sumTopSalaries = sortedCareer
+      .slice(0, samYearsCount)
+      .reduce((sum, r) => sum + r.revaluedSalaryEur, 0);
+    sam = samYearsCount > 0 ? Number((sumTopSalaries / samYearsCount).toFixed(2)) : 0;
+  }
+>>>>>>> 0dd3e94 (feat: synchronisation NIR, saisie manuelle des salaires, règles 2025 et rapport d'audit Sakura)
 
   // 6. Liquidation, décote et surcote
   let liquidationRate = 0.50; // Taux plein

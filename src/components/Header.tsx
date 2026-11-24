@@ -5,7 +5,6 @@ import {
   Download,
   Tv,
   RotateCcw,
-  Sparkles,
   HelpCircle,
 } from 'lucide-react';
 
@@ -65,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-300">
-                Projet MIAGE • Éligibilité, Réformes 2023 & LFSS 2026, Cumul Emploi-Retraite
+                Éligibilité, Réforme 2023, Régime Général & Agirc-Arrco, Cumul Emploi-Retraite
               </p>
             </div>
           </div>
@@ -130,8 +129,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Barre de sélection rapide de scénarios en 1 clic */}
         <div className="mt-3 pt-3 border-t border-institution-700/60 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider mr-1 flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-tealbrand-400" />
+          <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider mr-1">
             Scénarios de test :
           </span>
 

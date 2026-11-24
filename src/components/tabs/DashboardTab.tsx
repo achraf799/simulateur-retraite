@@ -14,7 +14,7 @@ import {
   PieChart as PieIcon,
   HelpCircle,
   Clock,
-  Sparkles,
+  
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -182,7 +182,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               {/* Détail Carrière Longue */}
               {result.isCarriereLongue ? (
                 <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100/80 border border-emerald-300 rounded-lg text-xs font-semibold text-emerald-900">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                  
                   <span>
                     Éligibilité Carrière Longue (RACL) confirmée : {result.carriereLongueDetails}
                   </span>

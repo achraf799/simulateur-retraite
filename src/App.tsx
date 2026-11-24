@@ -198,21 +198,7 @@ export const App: React.FC = () => {
         onGoToBilan={handleGoToBilan}
       />
 
-      {/* ── Footer ── */}
-      <footer className="bg-white border-t border-slate-200 py-3">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-700">
-              Simulateur Retraite Obligatoire &amp; CER
-            </span>
-            <span>•</span>
-            <span>Master MIAGE • Université</span>
-          </div>
-          <div>
-            CSS • ANI Agirc-Arrco • Réforme 2023 &amp; Suspension LFSS 2026
-          </div>
-        </div>
-      </footer>
+
     </div>
   );
 };

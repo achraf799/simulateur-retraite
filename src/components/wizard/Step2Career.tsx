@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
+<<<<<<< HEAD
 import { CareerYear, UserProfile, Currency, SamAnalysis, SamIncomeKind, SamYear } from '../../types/retirement';
 import { samIncomeKind } from '../../engine/annualSalary';
 import { SamParametersNote } from '../common/SamParametersNote';
+=======
+import { CareerYear, UserProfile, Currency } from '../../types/retirement';
+import { getPassForYear, FRF_TO_EUR_RATE } from '../../constants/passHistory';
+import { getCnavCoeff } from '../../constants/cnavCoefficients';
+>>>>>>> 0dd3e94 (feat: synchronisation NIR, saisie manuelle des salaires, règles 2025 et rapport d'audit Sakura)
 import { FormulaTooltip } from '../common/FormulaTooltip';
 import {
   Zap,
@@ -10,9 +16,9 @@ import {
   Download,
   ChevronDown,
   ChevronUp,
-  Award,
-  Info,
-  CheckCircle2,
+  Plus,
+  Trash2,
+  RotateCcw,
 } from 'lucide-react';
 
 const samYearLabels: Record<SamYear['status'], string> = {
@@ -46,9 +52,13 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   samAnalysis,
 }) => {
   const isExpress = profile.careerMode === 'express';
+<<<<<<< HEAD
   const sam = samAnalysis.amount;
   const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
   const [showDetailedTable, setShowDetailedTable] = useState<boolean>(false);
+=======
+  const [showDetailedTable, setShowDetailedTable] = useState<boolean>(true);
+>>>>>>> 0dd3e94 (feat: synchronisation NIR, saisie manuelle des salaires, règles 2025 et rapport d'audit Sakura)
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Valeurs par défaut du mode express si non définies
@@ -73,7 +83,6 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
 
   const handleUpdateExpress = (field: keyof typeof expressData, value: number) => {
     const nextData = { ...expressData, [field]: value };
-    // Synchroniser si contributedQuarters doit suivre
     if (field === 'totalQuarters' && expressData.contributedQuarters === expressData.totalQuarters) {
       nextData.contributedQuarters = value;
     }
@@ -81,7 +90,81 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   };
 
   const updateCareerRow = (index: number, changes: Partial<CareerYear>) => {
+<<<<<<< HEAD
     onChangeCareer(career.map((row, rowIndex) => rowIndex === index ? { ...row, ...changes } : row));
+=======
+    const nextCareer = [...career];
+    const currentRow = { ...nextCareer[index], ...changes };
+
+    const effectiveYear = currentRow.year || 2000;
+    const grossIncomeEur =
+      currentRow.currency === 'FRF'
+        ? Number((currentRow.grossIncome / FRF_TO_EUR_RATE).toFixed(2))
+        : currentRow.grossIncome;
+
+    const passEur = getPassForYear(effectiveYear);
+    const retainedSalaryEur = Math.min(grossIncomeEur, passEur);
+    const cnavCoeff = getCnavCoeff(effectiveYear, liquidationYear);
+    const revaluedSalaryEur = Number((retainedSalaryEur * cnavCoeff).toFixed(2));
+
+    nextCareer[index] = {
+      ...currentRow,
+      year: effectiveYear,
+      grossIncomeEur,
+      passEur,
+      retainedSalaryEur,
+      cnavCoeff,
+      revaluedSalaryEur,
+    };
+
+    // Conserver le tri chronologique si l'année a changé
+    if (changes.year !== undefined) {
+      nextCareer.sort((a, b) => a.year - b.year);
+    }
+
+    onChangeCareer(nextCareer);
+>>>>>>> 0dd3e94 (feat: synchronisation NIR, saisie manuelle des salaires, règles 2025 et rapport d'audit Sakura)
+  };
+
+  // Ajout manuel d'une nouvelle année
+  const handleAddYear = () => {
+    const maxYear = career.length > 0 ? Math.max(...career.map((c) => c.year)) : liquidationYear - 1;
+    const newYear = maxYear + 1;
+    const passEur = getPassForYear(newYear);
+    const cnavCoeff = getCnavCoeff(newYear, liquidationYear);
+
+    const newRow: CareerYear = {
+      year: newYear,
+      currency: newYear < 2002 ? 'FRF' : 'EUR',
+      grossIncome: 30000,
+      grossIncomeEur: 30000,
+      passEur,
+      retainedSalaryEur: Math.min(30000, passEur),
+      cnavCoeff,
+      revaluedSalaryEur: Number((Math.min(30000, passEur) * cnavCoeff).toFixed(2)),
+      regime: 'CNAV',
+      validatedQuarters: 4,
+      contributedQuarters: 4,
+      agircPoints: 120,
+      eventType: 'Activité',
+    };
+
+    const nextCareer = [...career, newRow].sort((a, b) => a.year - b.year);
+    onChangeCareer(nextCareer);
+    setShowDetailedTable(true);
+  };
+
+  // Suppression d'une ligne
+  const handleDeleteYear = (index: number) => {
+    const nextCareer = career.filter((_, i) => i !== index);
+    onChangeCareer(nextCareer);
+  };
+
+  // Vider tout le tableau
+  const handleClearCareer = () => {
+    if (window.confirm("Êtes-vous sûr de vouloir vider l'ensemble du relevé de carrière ?")) {
+      onChangeCareer([]);
+    }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,7 +184,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   const totalPoints = career.reduce((s, r) => s + r.agircPoints, 0);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Titre et intention */}
       <div className="text-center space-y-1 mb-6">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-institution-50 text-institution-700 text-xs font-semibold border border-institution-200 mb-2">
@@ -109,10 +192,10 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
           Étape 2 sur 5
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Votre carrière & vos droits
+          Votre carrière & vos salaires
         </h2>
         <p className="text-sm text-slate-500 max-w-md mx-auto">
-          Choisissez la méthode de saisie : ultra-rapide (4 chiffres) ou relevé complet année par année.
+          Choisissez la méthode de saisie : relevé détaillé année par année (avec saisie manuelle) ou mode express.
         </p>
       </div>
 
@@ -134,13 +217,13 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
             </div>
             {!isExpress && (
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-institution-600 text-white">
-                Actif (Cas Sakura)
+                Actif (Relevé complet)
               </span>
             )}
           </div>
-          <h3 className="font-extrabold text-slate-900 text-base">Relevé complet détaillé</h3>
+          <h3 className="font-extrabold text-slate-900 text-base">Relevé détaillé annuel</h3>
           <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Historique annuel complet (1979-2024), conversions FRF/EUR, plafonnement PASS et sélection des meilleures années.
+            Saisie ou modification des salaires ligne par ligne, devises EUR/FRF, trimestres et points Agirc-Arrco.
           </p>
         </button>
 
@@ -164,14 +247,14 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               </span>
             )}
           </div>
-          <h3 className="font-extrabold text-slate-900 text-base">Mode Express (15 secondes)</h3>
+          <h3 className="font-extrabold text-slate-900 text-base">Mode Express</h3>
           <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Remplissez uniquement 4 champs clés (trimestres, SAM estimé, points Agirc) pour tester un profil en direct.
+            Remplissez directement les 4 totaux clés (trimestres, SAM estimé, points) pour une estimation instantanée.
           </p>
         </button>
       </div>
 
-      {/* CONTENU MODE EXPRESS */}
+      {/* ── CONTENU MODE EXPRESS ── */}
       {isExpress && (
         <div className="bg-white rounded-2xl border border-tealbrand-200 p-6 shadow-sm space-y-5 animate-in fade-in duration-200">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
@@ -206,7 +289,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 className="w-full px-3.5 py-2.5 text-base font-bold text-slate-900 rounded-xl border border-slate-300 focus:border-tealbrand-500 focus:ring-4 focus:ring-tealbrand-50 focus:outline-none font-mono"
               />
               <p className="text-[11px] text-slate-400">
-                170 trimestres requis pour la génération 1963
+                170 trimestres requis pour la génération 1963 (barème 2025)
               </p>
             </div>
 
@@ -249,7 +332,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 </label>
                 <FormulaTooltip
                   title="SAM (Salaire Annuel Moyen)"
-                  formula="Moyenne des 25 (ou 23/24) meilleures années plafonnées et revalorisées"
+                  formula="Moyenne des 25 meilleures années plafonnées au PASS et revalorisées"
                   explanation="Base de calcul de la retraite du régime général. Ne peut pas dépasser le plafond PASS de l'année."
                   articleCss="Art. R. 351-29 CSS"
                 />
@@ -296,17 +379,17 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 className="w-full px-3.5 py-2.5 text-base font-bold text-indigo-800 rounded-xl border border-slate-300 focus:border-tealbrand-500 focus:ring-4 focus:ring-tealbrand-50 focus:outline-none font-mono"
               />
               <p className="text-[11px] text-slate-400">
-                Ex: Sakura = 9 274,16 points
+                Ex : Sakura = 9 274,16 points
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* CONTENU MODE RELEVÉ COMPLET */}
+      {/* ── CONTENU MODE RELEVÉ DÉTAILLÉ & MANUEL ── */}
       {!isExpress && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5 animate-in fade-in duration-200">
-          {/* Résumé visuel épuré */}
+          {/* Synthèse du relevé */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
             <div>
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -316,18 +399,32 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 {career.length} années enregistrées • {totalValidated} trimestres validés
               </div>
               <div className="text-xs text-slate-600 mt-1">
-                {totalContributed} trimestres cotisés (RACL) •{' '}
+                {totalContributed} trimestres cotisés •{' '}
                 {totalPoints.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts Agirc-Arrco •{' '}
+<<<<<<< HEAD
                 SAM · <strong>{samAnalysis.source === 'unavailable' ? 'indisponible' : euro.format(sam)}</strong>
+=======
+                SAM calculé (Top {samYearsCount}) ≈ <strong>{sam.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong>
+>>>>>>> 0dd3e94 (feat: synchronisation NIR, saisie manuelle des salaires, règles 2025 et rapport d'audit Sakura)
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-start sm:self-auto">
+            {/* Actions : Ajout manuel, Export, Import, Reset */}
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={handleAddYear}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-institution-700 hover:bg-institution-800 text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
+                title="Ajouter une année de salaire"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Ajouter une année</span>
+              </button>
               <button
                 type="button"
                 onClick={onExportCsv}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs"
-                title="Exporter le relevé"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors"
+                title="Exporter le relevé en CSV"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>CSV</span>
@@ -335,12 +432,23 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs transition-colors"
                 title="Importer un fichier CSV"
               >
                 <Upload className="w-3.5 h-3.5" />
                 <span>Importer</span>
               </button>
+              {career.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearCareer}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-semibold transition-colors"
+                  title="Vider tout le relevé"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Vider</span>
+                </button>
+              )}
               <input
                 type="file"
                 ref={fileInputRef}
@@ -351,6 +459,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
             </div>
           </div>
 
+<<<<<<< HEAD
           <SamParametersNote analysis={samAnalysis} />
 
           {samAnalysis.parentAdjustmentPending && (
@@ -391,6 +500,9 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
           )}
 
           {/* Bouton Accordéon dépliable pour le tableau (FERMÉ PAR DÉFAUT) */}
+=======
+          {/* Tableau détaillé modifiable année par année */}
+>>>>>>> 0dd3e94 (feat: synchronisation NIR, saisie manuelle des salaires, règles 2025 et rapport d'audit Sakura)
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <button
               type="button"
@@ -398,7 +510,11 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               className="w-full flex items-center justify-between px-5 py-3.5 bg-slate-100/70 hover:bg-slate-100 transition-colors text-left font-bold text-xs text-slate-700"
             >
               <span className="flex items-center gap-2">
+<<<<<<< HEAD
                 <span>{showDetailedTable ? 'Masquer' : 'Voir / modifier'} les lignes du relevé</span>
+=======
+                <span>{showDetailedTable ? 'Masquer' : 'Afficher'} le tableau détaillé (saisie et modification manuelle)</span>
+>>>>>>> 0dd3e94 (feat: synchronisation NIR, saisie manuelle des salaires, règles 2025 et rapport d'audit Sakura)
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
                   {samAnalysis.topYears.length} / {samAnalysis.yearLimit} années retenues
                 </span>
@@ -407,6 +523,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
             </button>
 
             {showDetailedTable && (
+<<<<<<< HEAD
               <div className="overflow-x-auto max-h-96 p-2 border-t border-slate-200">
                 <p className="mb-2 text-xs text-slate-600">
                   Pour une année avec interruption, sélectionnez « Revenu inscrit au compte » si le montant
@@ -505,6 +622,203 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                     ))}
                   </tbody>
                 </table>
+=======
+              <div>
+                {career.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500 space-y-3">
+                    <p className="text-sm">
+                      Aucune année de carrière enregistrée.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleAddYear}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-institution-700 hover:bg-institution-800 text-white rounded-xl text-xs font-bold transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Ajouter une première année de salaire</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto max-h-[28rem] p-2 border-t border-slate-200">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="bg-slate-50 text-slate-600 sticky top-0 font-bold border-b border-slate-200 z-10">
+                        <tr>
+                          <th className="py-2 px-2">Année</th>
+                          <th className="py-2 px-1.5">Devise</th>
+                          <th className="py-2 px-2 text-right">Revenu brut</th>
+                          <th className="py-2 px-2 text-right">PASS</th>
+                          <th className="py-2 px-2 text-right">Retenu (€)</th>
+                          <th className="py-2 px-1.5 text-right">Coeff</th>
+                          <th className="py-2 px-2 text-right font-bold">Revalorisé (€)</th>
+                          <th className="py-2 px-1.5 text-center">Trim. V</th>
+                          <th className="py-2 px-1.5 text-center">Trim. C</th>
+                          <th className="py-2 px-2 text-right">Points</th>
+                          <th className="py-2 px-1.5 text-center">Top {samYearsCount}</th>
+                          <th className="py-2 px-1 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {career.map((row, idx) => (
+                          <tr
+                            key={`${row.year}-${idx}`}
+                            className={`hover:bg-slate-50 ${
+                              row.isTopYear ? 'bg-amber-50/50 font-medium' : ''
+                            }`}
+                          >
+                            {/* Année modifiable */}
+                            <td className="py-1.5 px-2">
+                              <input
+                                type="number"
+                                min="1950"
+                                max="2035"
+                                value={row.year}
+                                onChange={(e) =>
+                                  updateCareerRow(idx, {
+                                    year: parseInt(e.target.value, 10) || row.year,
+                                  })
+                                }
+                                className="w-16 font-bold text-slate-800 text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5"
+                              />
+                            </td>
+
+                            {/* Devise avec conversion automatique */}
+                            <td className="py-1.5 px-1.5">
+                              <select
+                                value={row.currency}
+                                onChange={(e) =>
+                                  updateCareerRow(idx, { currency: e.target.value as Currency })
+                                }
+                                className="text-[11px] bg-white border border-slate-200 rounded px-1 py-0.5"
+                              >
+                                <option value="EUR">EUR</option>
+                                <option value="FRF">FRF</option>
+                              </select>
+                            </td>
+
+                            {/* Revenu brut modifiable */}
+                            <td className="py-1.5 px-2 text-right font-mono">
+                              <input
+                                type="number"
+                                step="100"
+                                min="0"
+                                value={row.grossIncome}
+                                onChange={(e) =>
+                                  updateCareerRow(idx, { grossIncome: parseFloat(e.target.value) || 0 })
+                                }
+                                className="w-24 text-right text-[11px] bg-white border border-slate-200 rounded px-1.5 py-0.5 font-bold"
+                              />
+                            </td>
+
+                            {/* PASS calculé */}
+                            <td className="py-1.5 px-2 text-right font-mono text-slate-400">
+                              {row.passEur.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+                            </td>
+
+                            {/* Salaire retenu (€) */}
+                            <td className="py-1.5 px-2 text-right font-mono text-slate-700">
+                              {row.retainedSalaryEur.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+                            </td>
+
+                            {/* Coefficient CNAV 2025 */}
+                            <td className="py-1.5 px-1.5 text-right font-mono text-slate-500">
+                              {row.cnavCoeff.toFixed(3)}
+                            </td>
+
+                            {/* Salaire revalorisé (€) */}
+                            <td className="py-1.5 px-2 text-right font-mono font-bold text-institution-800">
+                              {row.revaluedSalaryEur.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}
+                            </td>
+
+                            {/* Trimestres validés modifiables */}
+                            <td className="py-1.5 px-1.5 text-center">
+                              <input
+                                type="number"
+                                min="0"
+                                max="4"
+                                value={row.validatedQuarters}
+                                onChange={(e) =>
+                                  updateCareerRow(idx, {
+                                    validatedQuarters: Math.min(4, Math.max(0, parseInt(e.target.value, 10) || 0)),
+                                  })
+                                }
+                                className="w-9 text-center text-[11px] bg-white border border-slate-200 rounded py-0.5 font-bold"
+                              />
+                            </td>
+
+                            {/* Trimestres cotisés modifiables */}
+                            <td className="py-1.5 px-1.5 text-center">
+                              <input
+                                type="number"
+                                min="0"
+                                max="4"
+                                value={row.contributedQuarters}
+                                onChange={(e) =>
+                                  updateCareerRow(idx, {
+                                    contributedQuarters: Math.min(4, Math.max(0, parseInt(e.target.value, 10) || 0)),
+                                  })
+                                }
+                                className="w-9 text-center text-[11px] bg-white border border-slate-200 rounded py-0.5 text-tealbrand-700 font-bold"
+                              />
+                            </td>
+
+                            {/* Points Agirc-Arrco modifiables */}
+                            <td className="py-1.5 px-2 text-right font-mono">
+                              <input
+                                type="number"
+                                step="1"
+                                min="0"
+                                value={row.agircPoints}
+                                onChange={(e) =>
+                                  updateCareerRow(idx, {
+                                    agircPoints: Math.max(0, parseFloat(e.target.value) || 0),
+                                  })
+                                }
+                                className="w-16 text-right text-[11px] bg-white border border-slate-200 rounded px-1 py-0.5"
+                              />
+                            </td>
+
+                            {/* Badge Top N */}
+                            <td className="py-1.5 px-1.5 text-center">
+                              {row.isTopYear && (
+                                <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-1.5 py-0.5 rounded-full">
+                                  Top {samYearsCount}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Bouton Supprimer */}
+                            <td className="py-1.5 px-1 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteYear(idx)}
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                                title="Supprimer cette année"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    {/* Bouton d'ajout en bas du tableau */}
+                    <div className="p-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+                      <button
+                        type="button"
+                        onClick={handleAddYear}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-bold transition-colors shadow-2xs"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-institution-700" />
+                        <span>Ajouter une année supplémentaire</span>
+                      </button>
+                      <span className="text-[11px] text-slate-400">
+                        Total : {career.length} années enregistrées
+                      </span>
+                    </div>
+                  </div>
+                )}
+>>>>>>> 0dd3e94 (feat: synchronisation NIR, saisie manuelle des salaires, règles 2025 et rapport d'audit Sakura)
               </div>
             )}
           </div>

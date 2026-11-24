@@ -9,7 +9,7 @@ import {
   ArrowUpDown,
   Filter,
   Award,
-  Sparkles,
+  
 } from 'lucide-react';
 
 interface CareerTabProps {
@@ -389,7 +389,7 @@ export const CareerTab: React.FC<CareerTabProps> = ({
                     <td className="py-2 px-3 text-center">
                       {isTop ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 border border-amber-300 shadow-2xs">
-                          <Sparkles className="w-2.5 h-2.5 text-amber-600" />
+                          
                           Top {samYearsCount}
                         </span>
                       ) : (
