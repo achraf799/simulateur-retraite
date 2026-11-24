@@ -6,6 +6,7 @@ import {
   User,
   Briefcase,
   Sliders,
+  Sparkles,
   Calendar,
   Award,
   ArrowRight,
@@ -63,7 +64,7 @@ export const WizardHeader: React.FC<WizardHeaderProps> = ({
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
               }`}
             >
-              < className="w-3 h-3 text-amber-300" />
+              <Sparkles className="w-3 h-3 text-amber-300" />
               <span>Charger Cas Sakura</span>
             </button>
 

@@ -5,6 +5,7 @@ import {
   Clock,
   HeartPulse,
   ShieldCheck,
+  Sliders,
   Layers,
   CheckCircle2,
   Info,
