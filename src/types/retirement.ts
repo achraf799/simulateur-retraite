@@ -1,0 +1,131 @@
+export type Currency = 'EUR' | 'FRF';
+
+export type Regime = 'CNAV' | 'MSA';
+
+export type EventType = 'Activité' | 'Maladie/AT' | 'Maternité' | 'Chômage' | 'AVPF';
+
+export interface CareerYear {
+  year: number;
+  currency: Currency;
+  grossIncome: number; // in entered currency (FRF or EUR)
+  grossIncomeEur: number; // converted to EUR
+  passEur: number;
+  retainedSalaryEur: number; // MIN(grossIncomeEur, passEur)
+  cnavCoeff: number;
+  revaluedSalaryEur: number; // retainedSalaryEur * cnavCoeff
+  regime: Regime;
+  validatedQuarters: number; // 0 to 4
+  contributedQuarters: number; // 0 to 4 (cotisés ou réputés cotisés pour carrière longue)
+  agircPoints: number;
+  eventType: EventType;
+  isTopYear?: boolean; // top N best years for SAM
+}
+
+export interface SpecialCircumstances {
+  earlyCareer: boolean; // Début précoce avant 20 ans
+  earlyQuartersCount: number; // Nombre de trimestres avant 20 ans (ex: 13 pour Sakura)
+  careerInterruptions: boolean; // Maladie, maternité, chômage, AVPF
+  sicknessQuarters: number;
+  maternityQuarters: number;
+  unemploymentQuarters: number;
+  avpfQuarters: number;
+  automaticFullRate: boolean; // Inaptitude, handicap, invalidité (taux plein à 62 ans)
+  fullRateReason: 'inaptitude' | 'handicap' | 'invalidite' | 'none';
+  polycotisantMsa: boolean; // CNAV Salarié + MSA Salarié (LURA)
+}
+
+export interface ExpressCareerData {
+  totalQuarters: number;
+  contributedQuarters: number;
+  estimatedSam: number;
+  agircPoints: number;
+}
+
+export interface UserProfile {
+  nir: string;
+  birthDate: string; // YYYY-MM-DD
+  sex: 'M' | 'F';
+  childrenCount: number;
+  motherBonusQuarters: boolean; // 8 trimestres par enfant pour la mère (Art. L. 351-4 CSS)
+  desiredDepartureDate: string; // YYYY-MM-DD
+  lastGrossMonthlySalary: number; // EUR
+  cerEnabled: boolean;
+  cerResumptionDate: string; // YYYY-MM-DD
+  cerFormerEmployer: boolean;
+  cerNewGrossMonthlySalary: number; // EUR
+  careerMode?: 'detailed' | 'express';
+  expressData?: ExpressCareerData;
+  specialCircumstances?: SpecialCircumstances;
+}
+
+export interface CerAnalysisResult {
+  status: 'PLAFONNE' | 'INTEGRAL';
+  alertLevel: 'RED' | 'YELLOW' | 'GREEN';
+  alertMessage: string;
+  suspensionApplies: boolean;
+  waitingMonthsRemaining: number;
+  waitingPeriodEndDate: string;
+  ceilingAmount: number;
+  totalCerRevenue: number;
+  exceedsCeiling: boolean;
+  ecretementAmount: number;
+  effectiveMonthlyGrossPension: number;
+  generatesNewRights: boolean;
+  newRightsDetails: string;
+  recommendations: Array<{
+    title: string;
+    description: string;
+    badge: string;
+    impact: string;
+  }>;
+}
+
+export interface CalculationResult {
+  ageAtDeparture: {
+    years: number;
+    months: number;
+    totalMonths: number;
+    formatted: string;
+  };
+  legalAge: {
+    years: number;
+    months: number;
+    totalMonths: number;
+    formatted: string;
+  };
+  requiredQuarters: number;
+  totalValidatedQuarters: number;
+  totalContributedQuarters: number;
+  isCarriereLongue: boolean;
+  carriereLongueDetails: string;
+  eligibilityStatus: 'eligible_taux_plein' | 'eligible_decote' | 'ineligible';
+  appliedRule: 'Réforme 2023' | 'Suspension LFSS 2026';
+  samYearsCount: number; // 25, 24 ou 23
+  sam: number;
+  topYears: number[];
+  liquidationRate: number; // 0.50 (taux plein) ou décoté
+  decoteQuarters: number;
+  surcoteQuarters: number;
+  surcoteRate: number;
+  proratisation: number; // MIN(validatedQuarters, requiredQuarters) / requiredQuarters
+  // Retraite de base
+  basePensionMonthlyGrossBeforeBonus: number;
+  baseChildBonusMonthly: number;
+  basePensionMonthlyGross: number;
+  basePensionAnnualGross: number;
+  basePensionMonthlyNet: number;
+  // Agirc-Arrco
+  agircTotalPoints: number;
+  agircPointValue: number;
+  agircMonthlyGrossBeforeBonus: number;
+  agircChildBonusMonthly: number;
+  agircChildBonusCapped: boolean;
+  agircMonthlyGross: number;
+  agircMonthlyNet: number;
+  // Total
+  totalMonthlyGross: number;
+  totalMonthlyNet: number;
+  grossReplacementRate: number; // totalMonthlyGross / lastGrossMonthlySalary
+  // CER
+  cerAnalysis: CerAnalysisResult;
+}

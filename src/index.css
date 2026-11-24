@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 font-sans;
+  }
+}
+
+/* Print / Projector Presentation Mode styling */
+.presentation-mode {
+  font-size: 1.15rem;
+}
+.presentation-mode .card-compact {
+  padding: 1.75rem !important;
+}
+.presentation-mode .text-sm {
+  font-size: 1rem !important;
+}
+.presentation-mode .text-xs {
+  font-size: 0.875rem !important;
+}
