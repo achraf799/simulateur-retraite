@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CalculationResult, UserProfile } from '../../types/retirement';
 import { SamParametersNote } from '../common/SamParametersNote';
 import { LongCareerSummary } from '../common/LongCareerSummary';
+import { retirementDateIssue } from '../../utils/civilDates';
 import { SimpleTooltip } from '../common/SimpleTooltip';
 import {
   ShieldCheck,
@@ -28,6 +29,7 @@ interface Step5BilanProps {
   profile: UserProfile;
   onChangeProfile: (updated: Partial<UserProfile>) => void;
   onModifySimulation: () => void;
+  onModifyDeparture: () => void;
 }
 
 export const Step5Bilan: React.FC<Step5BilanProps> = ({
@@ -35,6 +37,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
   profile,
   onChangeProfile,
   onModifySimulation,
+  onModifyDeparture,
 }) => {
   const [showFormulasAccordion, setShowFormulasAccordion] = useState(false);
   const cer = result.cerAnalysis;
@@ -54,6 +57,24 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
   const formatDate = (date: string) => date.split('-').reverse().join('/');
   const formatEuros = (amount: number) =>
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+
+  const dateIssue = retirementDateIssue(profile.birthDate, profile.desiredDepartureDate);
+  if (dateIssue) {
+    return (
+      <section className="mx-auto max-w-4xl space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="text-lg font-bold text-slate-900">Bilan à compléter</h2>
+        <p className="text-sm text-slate-700">{dateIssue}</p>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" onClick={onModifySimulation} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
+            Renseigner mon identité
+          </button>
+          <button type="button" onClick={onModifyDeparture} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
+            Choisir mon départ
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-7 animate-fadeIn">
@@ -165,17 +186,18 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 </div>
               </div>
 
-              {/* Badge Taux de remplacement */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-right sm:text-right shrink-0">
-                <span className="text-xs text-slate-500 block">Taux de remplacement brut</span>
-                <div className="text-3xl font-black text-tealbrand-700 mt-0.5">
-                  {result.grossReplacementRate}{' '}
-                  <span className="text-base font-bold text-tealbrand-600">%</span>
+              {profile.lastGrossMonthlySalary > 0 && (
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-right sm:text-right shrink-0">
+                  <span className="text-xs text-slate-500 block">Taux de remplacement brut</span>
+                  <div className="text-3xl font-black text-tealbrand-700 mt-0.5">
+                    {result.grossReplacementRate}{' '}
+                    <span className="text-base font-bold text-tealbrand-600">%</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                    sur dernier salaire ({profile.lastGrossMonthlySalary.toLocaleString('fr-FR')} €)
+                  </span>
                 </div>
-                <span className="text-[11px] text-slate-400 block mt-0.5">
-                  sur dernier salaire ({profile.lastGrossMonthlySalary.toLocaleString('fr-FR')} €)
-                </span>
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -324,7 +346,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
         </section>
       )}
 
-      {samAvailable && (
+      {samAvailable && profile.lastGrossMonthlySalary > 0 && (
         <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-4">
           <div>
             <h3 className="font-bold text-sm text-slate-900">

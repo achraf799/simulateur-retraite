@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { CareerYear, UserProfile, Currency, SamAnalysis, SamIncomeKind, SamYear } from '../../types/retirement';
+import { CareerYear, UserProfile, Currency, Regime, EventType, SamAnalysis, SamIncomeKind, SamYear } from '../../types/retirement';
 import { samIncomeKind } from '../../engine/annualSalary';
+import { FIRST_CAREER_YEAR, toCareerYear } from '../../utils/careerEntry';
+import type { CareerImportStatus } from '../../utils/csvHelper';
 import { SamParametersNote } from '../common/SamParametersNote';
 import { FormulaTooltip } from '../common/FormulaTooltip';
 import {
@@ -13,6 +15,7 @@ import {
   Award,
   Info,
   CheckCircle2,
+  Plus,
 } from 'lucide-react';
 
 const samYearLabels: Record<SamYear['status'], string> = {
@@ -32,7 +35,8 @@ interface Step2CareerProps {
   onChangeProfile: (updated: Partial<UserProfile>) => void;
   onChangeCareer: (updated: CareerYear[]) => void;
   onExportCsv: () => void;
-  onImportCsv: (csvText: string) => void;
+  onImportCsv: (file: File) => void;
+  importStatus: CareerImportStatus;
   samAnalysis: SamAnalysis;
 }
 
@@ -43,6 +47,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   onChangeCareer,
   onExportCsv,
   onImportCsv,
+  importStatus,
   samAnalysis,
 }) => {
   const isExpress = profile.careerMode === 'express';
@@ -51,54 +56,54 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   const [showDetailedTable, setShowDetailedTable] = useState<boolean>(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Valeurs par défaut du mode express si non définies
-  const expressData = profile.expressData || {
-    totalQuarters: career.reduce((s, r) => s + r.validatedQuarters, 0) || 170,
-    contributedQuarters: career.reduce((s, r) => s + r.contributedQuarters, 0) || 170,
-    estimatedSam: sam || 40000,
-    agircPoints: career.reduce((s, r) => s + r.agircPoints, 0) || 9000,
-  };
+  const [newYear, setNewYear] = useState('');
+  const [newRegime, setNewRegime] = useState<Regime>('CNAV');
+  const liquidationYear = Number(profile.desiredDepartureDate.slice(0, 4)) || 2025;
+  const totals = career.reduce((sum, row) => ({
+    totalQuarters: sum.totalQuarters + row.validatedQuarters,
+    contributedQuarters: sum.contributedQuarters + row.contributedQuarters,
+    agircPoints: sum.agircPoints + row.agircPoints,
+  }), { totalQuarters: 0, contributedQuarters: 0, agircPoints: 0 });
+  const expressData = profile.expressData ?? { ...totals, estimatedSam: sam };
 
   const handleModeSwitch = (mode: 'detailed' | 'express') => {
-    onChangeProfile({
-      careerMode: mode,
-      expressData: {
-        totalQuarters: career.reduce((s, r) => s + r.validatedQuarters, 0) || expressData.totalQuarters,
-        contributedQuarters: career.reduce((s, r) => s + r.contributedQuarters, 0) || expressData.contributedQuarters,
-        estimatedSam: sam || expressData.estimatedSam,
-        agircPoints: career.reduce((s, r) => s + r.agircPoints, 0) || expressData.agircPoints,
-      },
-    });
+    if (mode === profile.careerMode) return;
+    onChangeProfile(mode === 'express' ? { careerMode: mode, expressData } : { careerMode: mode });
   };
 
   const handleUpdateExpress = (field: keyof typeof expressData, value: number) => {
     const nextData = { ...expressData, [field]: value };
-    // Synchroniser si contributedQuarters doit suivre
-    if (field === 'totalQuarters' && expressData.contributedQuarters === expressData.totalQuarters) {
-      nextData.contributedQuarters = value;
+    if (field === 'totalQuarters') {
+      nextData.contributedQuarters = expressData.contributedQuarters === expressData.totalQuarters
+        ? value : Math.min(value, nextData.contributedQuarters);
     }
     onChangeProfile({ expressData: nextData });
   };
 
   const updateCareerRow = (index: number, changes: Partial<CareerYear>) => {
-    onChangeCareer(career.map((row, rowIndex) => rowIndex === index ? { ...row, ...changes } : row));
+    onChangeCareer(career.map((row, rowIndex) => rowIndex === index
+      ? toCareerYear({ ...row, ...changes }, liquidationYear)
+      : row));
+  };
+
+  const addCareerYear = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const year = Number(newYear);
+    if (!/^\d{4}$/.test(newYear) || year < FIRST_CAREER_YEAR) return;
+    const entry = toCareerYear({
+      year, regime: newRegime, currency: 'EUR', grossIncome: 0,
+      validatedQuarters: 0, contributedQuarters: 0, agircPoints: 0, eventType: 'Activité',
+    }, liquidationYear);
+    onChangeCareer([...career, entry].sort((a, b) => a.year - b.year));
+    setNewYear('');
+    setShowDetailedTable(true);
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      if (text) onImportCsv(text);
-    };
-    reader.readAsText(file);
     e.target.value = '';
+    if (file) onImportCsv(file);
   };
-
-  const totalValidated = career.reduce((s, r) => s + r.validatedQuarters, 0);
-  const totalContributed = career.reduce((s, r) => s + r.contributedQuarters, 0);
-  const totalPoints = career.reduce((s, r) => s + r.agircPoints, 0);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -134,13 +139,13 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
             </div>
             {!isExpress && (
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-institution-600 text-white">
-                Actif (Cas Sakura)
+                Actif
               </span>
             )}
           </div>
           <h3 className="font-extrabold text-slate-900 text-base">Relevé complet détaillé</h3>
           <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Historique annuel complet (1979-2024), conversions FRF/EUR, plafonnement PASS et sélection des meilleures années.
+            Ajoutez les lignes de votre relevé ou importez un fichier CSV.
           </p>
         </button>
 
@@ -199,7 +204,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 type="number"
                 min="0"
                 max="200"
-                value={expressData.totalQuarters}
+                value={expressData.totalQuarters || ''}
                 onChange={(e) =>
                   handleUpdateExpress('totalQuarters', Math.max(0, parseInt(e.target.value, 10) || 0))
                 }
@@ -227,11 +232,11 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 type="number"
                 min="0"
                 max="200"
-                value={expressData.contributedQuarters}
+                value={expressData.contributedQuarters || ''}
                 onChange={(e) =>
                   handleUpdateExpress(
                     'contributedQuarters',
-                    Math.max(0, parseInt(e.target.value, 10) || 0)
+                    Math.min(expressData.totalQuarters, Math.max(0, parseInt(e.target.value, 10) || 0))
                   )
                 }
                 className="w-full px-3.5 py-2.5 text-base font-bold text-tealbrand-800 rounded-xl border border-slate-300 focus:border-tealbrand-500 focus:ring-4 focus:ring-tealbrand-50 focus:outline-none font-mono"
@@ -259,7 +264,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                   type="number"
                   min="0"
                   step="500"
-                  value={expressData.estimatedSam}
+                  value={expressData.estimatedSam || ''}
                   onChange={(e) =>
                     handleUpdateExpress('estimatedSam', Math.max(0, parseFloat(e.target.value) || 0))
                   }
@@ -289,7 +294,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 type="number"
                 min="0"
                 step="100"
-                value={expressData.agircPoints}
+                value={expressData.agircPoints || ''}
                 onChange={(e) =>
                   handleUpdateExpress('agircPoints', Math.max(0, parseFloat(e.target.value) || 0))
                 }
@@ -313,11 +318,11 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 Synthèse du relevé de carrière
               </div>
               <div className="text-lg font-black text-slate-900 mt-0.5">
-                {career.length} années enregistrées • {totalValidated} trimestres validés
+                {new Set(career.map((row) => row.year)).size} année(s) dans le relevé · {totals.totalQuarters} trimestres saisis
               </div>
               <div className="text-xs text-slate-600 mt-1">
-                {totalContributed} trimestres cotisés (RACL) •{' '}
-                {totalPoints.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts Agirc-Arrco •{' '}
+                {totals.contributedQuarters} trimestres cotisés (RACL) •{' '}
+                {totals.agircPoints.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts Agirc-Arrco •{' '}
                 SAM · <strong>{samAnalysis.source === 'unavailable' ? 'indisponible' : euro.format(sam)}</strong>
               </div>
             </div>
@@ -326,6 +331,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               <button
                 type="button"
                 onClick={onExportCsv}
+                disabled={career.length === 0}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs"
                 title="Exporter le relevé"
               >
@@ -335,11 +341,12 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
+                disabled={importStatus.kind === 'loading'}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-2xs"
                 title="Importer un fichier CSV"
               >
                 <Upload className="w-3.5 h-3.5" />
-                <span>Importer</span>
+                <span>{career.length ? 'Importer et remplacer' : 'Importer un CSV'}</span>
               </button>
               <input
                 type="file"
@@ -350,6 +357,53 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               />
             </div>
           </div>
+
+          {importStatus.kind === 'error' && (
+            <div role="alert" className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+              <p>{importStatus.message}</p>
+              {importStatus.issues && (
+                <ul className="max-h-44 list-disc overflow-auto pl-5">
+                  {importStatus.issues.map((issue) => (
+                    <li key={issue.line}><strong>Ligne {issue.line}</strong> · {issue.messages.join(' ')}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          {importStatus.kind === 'loading' && <p role="status" className="text-sm">Lecture du relevé en cours.</p>}
+          {importStatus.kind === 'success' && (
+            <p role="status" className="text-sm text-emerald-800">
+              Import réussi. {importStatus.count} ligne(s) chargée(s).
+            </p>
+          )}
+
+          <form onSubmit={addCareerYear} className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 p-3">
+            <label className="block text-xs font-semibold text-slate-700">
+              Année à ajouter
+              <input
+                type="number" min={FIRST_CAREER_YEAR} max={9999} step={1} required
+                value={newYear} onChange={(event) => setNewYear(event.target.value)}
+                className="mt-1 block w-24 rounded-lg border border-slate-300 px-2 py-2 text-sm"
+              />
+            </label>
+            <label className="block text-xs font-semibold text-slate-700">
+              Régime de l’année à ajouter
+              <select
+                value={newRegime} onChange={(event) => setNewRegime(event.target.value as Regime)}
+                className="mt-1 block rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+              >
+                <option value="CNAV">Régime général</option>
+                <option value="MSA">MSA salariée</option>
+              </select>
+            </label>
+            <button type="submit" className="inline-flex items-center gap-1 rounded-lg bg-institution-700 px-3 py-2 text-sm font-semibold text-white">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Ajouter une année
+            </button>
+          </form>
+          {career.length === 0 && (
+            <p className="text-sm text-slate-600">Le relevé est vide. Ajoutez une année, importez un CSV ou choisissez le mode express.</p>
+          )}
 
           <SamParametersNote analysis={samAnalysis} />
 
@@ -390,7 +444,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
             </details>
           )}
 
-          {/* Bouton Accordéon dépliable pour le tableau (FERMÉ PAR DÉFAUT) */}
+          {career.length > 0 && (
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <button
               type="button"
@@ -425,6 +479,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                       <th className="py-2 px-2 text-center">Trim. V</th>
                       <th className="py-2 px-2 text-center">Trim. C</th>
                       <th className="py-2 px-2 text-right">Points</th>
+                      <th className="py-2 px-2"><span className="sr-only">Actions</span></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -456,7 +511,33 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                             className="w-24 text-right text-[11px] bg-white border border-slate-200 rounded px-1 py-0.5"
                           />
                         </td>
-                        <td className="px-2 text-slate-700">{row.regime}</td>
+                        <td className="px-2">
+                          <select
+                            aria-label={`Régime ${row.year}`}
+                            value={row.regime}
+                            onChange={(event) => updateCareerRow(idx, { regime: event.target.value as Regime })}
+                            className="rounded border border-slate-200 bg-white px-1 py-0.5 text-[11px]"
+                          >
+                            <option value="CNAV">CNAV</option>
+                            <option value="MSA">MSA</option>
+                          </select>
+                        </td>
+                        <td className="px-2">
+                          <select
+                            aria-label={`Événement ${row.year}`}
+                            value={row.eventType}
+                            onChange={(event) => updateCareerRow(idx, {
+                              eventType: event.target.value as EventType,
+                            })}
+                            className="rounded border border-slate-200 bg-white px-1 py-0.5 text-[11px]"
+                          >
+                            <option>Activité</option>
+                            <option>Maladie/AT</option>
+                            <option>Maternité</option>
+                            <option>Chômage</option>
+                            <option>AVPF</option>
+                          </select>
+                        </td>
                         <td className="px-2">
                           <select
                             aria-label={`Traitement SAM ${row.year}`}
@@ -475,11 +556,14 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                             min="0"
                             max="4"
                             value={row.validatedQuarters}
-                            onChange={(e) =>
+                            aria-label={`Trimestres validés ${row.year}`}
+                            onChange={(e) => {
+                              const validatedQuarters = Math.min(4, Math.max(0, parseInt(e.target.value, 10) || 0));
                               updateCareerRow(idx, {
-                                validatedQuarters: Math.min(4, Math.max(0, parseInt(e.target.value, 10) || 0)),
-                              })
-                            }
+                                validatedQuarters,
+                                contributedQuarters: Math.min(validatedQuarters, row.contributedQuarters),
+                              });
+                            }}
                             className="w-9 text-center text-[11px] bg-white border border-slate-200 rounded py-0.5 font-bold"
                           />
                         </td>
@@ -487,20 +571,38 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                           <input
                             type="number"
                             min="0"
-                            max="4"
+                            max={row.validatedQuarters}
+                            aria-label={`Trimestres cotisés ${row.year}`}
                             value={row.contributedQuarters}
                             onChange={(e) =>
                               updateCareerRow(idx, {
-                                contributedQuarters: Math.min(4, Math.max(0, parseInt(e.target.value, 10) || 0)),
+                                contributedQuarters: Math.min(row.validatedQuarters, Math.max(0, parseInt(e.target.value, 10) || 0)),
                               })
                             }
                             className="w-9 text-center text-[11px] bg-white border border-slate-200 rounded py-0.5 text-tealbrand-700 font-bold"
                           />
                         </td>
                         <td className="py-1.5 px-2 text-right font-mono">
-                          {row.agircPoints.toFixed(1)}
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            aria-label={`Points Agirc-Arrco ${row.year}`}
+                            value={row.agircPoints}
+                            onChange={(event) => updateCareerRow(idx, { agircPoints: Math.max(0, Number(event.target.value) || 0) })}
+                            className="w-20 rounded border border-slate-200 px-1 py-0.5 text-right"
+                          />
                         </td>
-
+                        <td className="px-2">
+                          <button
+                            type="button"
+                            aria-label={`Supprimer la ligne ${row.year} ${row.regime}`}
+                            onClick={() => onChangeCareer(career.filter((_, index) => index !== idx))}
+                            className="rounded px-2 py-1 text-xs font-semibold text-red-800 hover:bg-red-50"
+                          >
+                            Supprimer
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -508,6 +610,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               </div>
             )}
           </div>
+          )}
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 import type { CareerYear, EarlyCareerAge, LongCareerResult, UserProfile } from '../types/retirement';
 import { addMonths, validDate } from '../utils/civilDates';
+import { careerQuarters, validQuarterCount } from '../utils/careerEntry';
 
 export const EARLY_CAREER_AGES = [16, 18, 20, 21] as const;
 const REFORM_2023 = '2023-09-01';
@@ -36,39 +37,6 @@ function earliestDate(birthDate: string, startAge: EarlyCareerAge): string {
   if (oldDate < SUSPENSION_2026) return oldDate < REFORM_2023 ? REFORM_2023 : oldDate;
   const newDate = firstPensionDate(birthDate, ageAtThreshold(birthDate, startAge, true));
   return newDate < SUSPENSION_2026 ? SUSPENSION_2026 : newDate;
-}
-
-function validQuarterCount(count: number | undefined): count is number {
-  return count !== undefined && Number.isInteger(count) && count >= 0;
-}
-
-function careerQuarters(career: CareerYear[], birthYear: number, departure: string) {
-  const [departureYear, departureMonth] = departure.split('-').map(Number);
-  const rowsByYear = new Map<number, Map<CareerYear['regime'], CareerYear[]>>();
-  for (const row of career) {
-    if (!Number.isInteger(row.year) || row.year < birthYear || row.year > departureYear) continue;
-    const regimes = rowsByYear.get(row.year) ?? new Map<CareerYear['regime'], CareerYear[]>();
-    const rows = regimes.get(row.regime) ?? [];
-    rows.push(row);
-    regimes.set(row.regime, rows);
-    rowsByYear.set(row.year, regimes);
-  }
-
-  let contributed = 0;
-  const validatedByYear = new Map<number, number>();
-  for (const [year, regimes] of rowsByYear) {
-    let validated = 0;
-    let paid = 0;
-    const limit = year === departureYear ? Math.floor((departureMonth - 1) / 3) : 4;
-    for (const rows of regimes.values()) {
-      // Multiple annual totals for the same regime are treated as overlapping.
-      validated += Math.max(0, ...rows.map((row) => validQuarterCount(row.validatedQuarters) ? row.validatedQuarters : 0));
-      paid += Math.max(0, ...rows.map((row) => validQuarterCount(row.contributedQuarters) ? row.contributedQuarters : 0));
-    }
-    validatedByYear.set(year, Math.min(limit, validated));
-    contributed += Math.min(limit, paid);
-  }
-  return { contributed, validatedByYear };
 }
 
 export function analyzeLongCareer(

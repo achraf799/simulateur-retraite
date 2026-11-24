@@ -64,7 +64,7 @@ export interface ExpressCareerData {
 export interface UserProfile {
   nir: string;
   birthDate: string; // YYYY-MM-DD
-  sex: 'M' | 'F';
+  sex: '' | 'M' | 'F';
   childrenCount: number;
   samEligibleChildren?: 0 | 1 | 2; // 2 = deux enfants ou plus
   motherBonusQuarters: boolean; // 8 trimestres par enfant pour la mère (Art. L. 351-4 CSS)

@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserProfile, CalculationResult } from '../../types/retirement';
+import { retirementDateIssue } from '../../utils/civilDates';
 import { FormulaTooltip } from '../common/FormulaTooltip';
 import {
   Calendar,
@@ -24,13 +25,14 @@ export const Step4DepartureAndCer: React.FC<Step4DepartureAndCerProps> = ({
   calculationResult,
   onChangeProfile,
 }) => {
-  // Parsing date départ (YYYY-MM-DD)
-  const departureDate = profile.desiredDepartureDate || '2025-01-01';
-  const [depYear, depMonth] = departureDate.split('-');
+  const departureDate = profile.desiredDepartureDate;
+  const [draft, setDraft] = React.useState({ year: '', month: '' });
+  const [depYear, depMonth] = departureDate ? departureDate.split('-') : [draft.year, draft.month];
+  const dateIssue = retirementDateIssue(profile.birthDate, departureDate);
 
   const handleDateChange = (year: string, month: string) => {
-    const formattedDate = `${year}-${month.padStart(2, '0')}-01`;
-    onChangeProfile({ desiredDepartureDate: formattedDate });
+    setDraft({ year, month });
+    onChangeProfile({ desiredDepartureDate: year && month ? `${year}-${month}-01` : '' });
   };
 
   const months = [
@@ -93,12 +95,14 @@ export const Step4DepartureAndCer: React.FC<Step4DepartureAndCerProps> = ({
 
           <div className="grid grid-cols-2 gap-3 max-w-md">
             <div>
-              <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Mois</label>
+              <label htmlFor="retirement-month" className="text-[11px] font-semibold text-slate-500 mb-1 block">Mois</label>
               <select
+                id="retirement-month"
                 value={depMonth}
                 onChange={(e) => handleDateChange(depYear, e.target.value)}
                 className="w-full px-3 py-2 text-sm font-semibold border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-institution-500 bg-white"
               >
+                <option value="">Choisir le mois</option>
                 {months.map((m) => (
                   <option key={m.value} value={m.value}>
                     {m.label}
@@ -108,12 +112,14 @@ export const Step4DepartureAndCer: React.FC<Step4DepartureAndCerProps> = ({
             </div>
 
             <div>
-              <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Année</label>
+              <label htmlFor="retirement-year" className="text-[11px] font-semibold text-slate-500 mb-1 block">Année</label>
               <select
+                id="retirement-year"
                 value={depYear}
                 onChange={(e) => handleDateChange(e.target.value, depMonth)}
                 className="w-full px-3 py-2 text-sm font-semibold border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-institution-500 bg-white"
               >
+                <option value="">Choisir l’année</option>
                 {years.map((y) => (
                   <option key={y} value={y}>
                     {y}
@@ -123,20 +129,23 @@ export const Step4DepartureAndCer: React.FC<Step4DepartureAndCerProps> = ({
             </div>
           </div>
 
-          {/* Indicateur Âge légal vs Âge au départ */}
-          <div className="mt-4 flex flex-wrap items-center gap-2 sm:gap-4 bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs sm:text-sm">
-            <div className="flex items-center gap-1.5 text-slate-700">
-              <Clock className="w-4 h-4 text-slate-500" />
-              <span>Âge au départ :</span>
-              <strong className="text-slate-900">{calculationResult.ageAtDeparture.formatted}</strong>
+          {dateIssue ? (
+            <p className="mt-4 text-sm text-slate-600">{dateIssue}</p>
+          ) : (
+            <div className="mt-4 flex flex-wrap items-center gap-2 sm:gap-4 bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs sm:text-sm">
+              <div className="flex items-center gap-1.5 text-slate-700">
+                <Clock className="w-4 h-4 text-slate-500" />
+                <span>Âge au départ :</span>
+                <strong className="text-slate-900">{calculationResult.ageAtDeparture.formatted}</strong>
+              </div>
+              <span className="text-slate-300 hidden sm:inline">|</span>
+              <div className="flex items-center gap-1.5 text-slate-700">
+                <span>Âge légal de départ :</span>
+                <strong className="text-institution-700">{calculationResult.legalAge.formatted}</strong>
+                <span className="text-[11px] text-slate-400">({calculationResult.appliedRule})</span>
+              </div>
             </div>
-            <span className="text-slate-300 hidden sm:inline">|</span>
-            <div className="flex items-center gap-1.5 text-slate-700">
-              <span>Âge légal de départ :</span>
-              <strong className="text-institution-700">{calculationResult.legalAge.formatted}</strong>
-              <span className="text-[11px] text-slate-400">({calculationResult.appliedRule})</span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Dernier salaire mensuel brut */}
@@ -158,7 +167,7 @@ export const Step4DepartureAndCer: React.FC<Step4DepartureAndCerProps> = ({
               type="number"
               min={0}
               step={50}
-              value={profile.lastGrossMonthlySalary}
+              value={profile.lastGrossMonthlySalary || ''}
               onChange={(e) =>
                 onChangeProfile({
                   lastGrossMonthlySalary: Math.max(0, parseFloat(e.target.value) || 0),
@@ -321,8 +330,8 @@ export const Step4DepartureAndCer: React.FC<Step4DepartureAndCerProps> = ({
                   <input
                     type="month"
                     min={profile.cerResumptionDate.slice(0, 7)}
-                    max={cerYear + '-12'}
-                    value={profile.cerActivityEndDate?.slice(0, 7) ?? cerYear + '-12'}
+                    max={cerYear ? cerYear + '-12' : undefined}
+                    value={profile.cerActivityEndDate?.slice(0, 7) ?? (cerYear ? cerYear + '-12' : '')}
                     onChange={(e) => {
                       const [year, month] = e.target.value.split('-').map(Number);
                       const end = e.target.value

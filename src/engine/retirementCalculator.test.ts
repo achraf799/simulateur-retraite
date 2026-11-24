@@ -1,10 +1,35 @@
 import { describe, it, expect } from 'vitest';
 import { calculateRetirement } from './retirementCalculator';
-import { SAKURA_PROFILE, SAKURA_CAREER, LFSS_2026_PROFILE, LFSS_2026_CAREER } from '../constants/scenarios';
+import { BLANK_PROFILE, BLANK_CAREER, SAKURA_PROFILE, SAKURA_CAREER, LFSS_2026_PROFILE, LFSS_2026_CAREER } from '../constants/scenarios';
 import { UserProfile, CareerYear } from '../types/retirement';
 import { REPERES_2026 } from '../constants/parameters2026';
 
 describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', () => {
+  it('ne présente pas de droits de démonstration pour une nouvelle simulation', () => {
+    const result = calculateRetirement(BLANK_PROFILE, BLANK_CAREER);
+    expect(BLANK_PROFILE).toMatchObject({ birthDate: '', desiredDepartureDate: '', sex: '', lastGrossMonthlySalary: 0 });
+    expect(result).toMatchObject({
+      ageAtDeparture: { formatted: 'À renseigner' },
+      eligibilityStatus: 'ineligible',
+      totalValidatedQuarters: 0,
+      agircTotalPoints: 0,
+      samAnalysis: { source: 'unavailable' },
+    });
+  });
+
+  it('plafonne les trimestres par année et écarte les lignes futures à la liquidation', () => {
+    const row = { ...SAKURA_CAREER[2], year: 2024, agircPoints: 100 };
+    const result = calculateRetirement({ ...SAKURA_PROFILE, desiredDepartureDate: '2025-09-01' }, [
+      row,
+      { ...row, regime: 'MSA' },
+      { ...row, year: 2025 },
+      { ...row, year: 2026 },
+    ]);
+    expect(result.totalValidatedQuarters).toBe(6);
+    expect(result.totalContributedQuarters).toBe(6);
+    expect(result.agircTotalPoints).toBe(300);
+  });
+
   describe('1. Validation exacte du Cas Sakura (Cas Référence Jury)', () => {
     const result = calculateRetirement(SAKURA_PROFILE, SAKURA_CAREER);
 

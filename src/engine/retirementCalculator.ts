@@ -2,7 +2,8 @@ import { CareerYear, UserProfile, CalculationResult } from '../types/retirement'
 import { calculateAnnualSalary } from './annualSalary';
 import { analyzeCer } from './cerCalculator';
 import { analyzeLongCareer, firstPensionDate } from './longCareer';
-import { addMonths, validDate } from '../utils/civilDates';
+import { careerQuarters } from '../utils/careerEntry';
+import { addMonths, retirementDateIssue, validDate } from '../utils/civilDates';
 import { REPERES_2026, GENERATION_SCALES } from '../constants/parameters2026';
 
 /**
@@ -20,8 +21,9 @@ export function calculateRetirement(
   rawCareer: CareerYear[]
 ): CalculationResult {
   // 1. Analyse des dates et de l'âge
-  const birthDate = new Date(profile.birthDate);
-  const departureDate = new Date(profile.desiredDepartureDate);
+  const datesReady = retirementDateIssue(profile.birthDate, profile.desiredDepartureDate) === undefined;
+  const birthDate = new Date(validDate(profile.birthDate) ? profile.birthDate : NaN);
+  const departureDate = new Date(validDate(profile.desiredDepartureDate) ? profile.desiredDepartureDate : NaN);
 
   const birthYear = birthDate.getUTCFullYear();
   const birthMonth = birthDate.getUTCMonth() + 1; // 1-12
@@ -32,7 +34,7 @@ export function calculateRetirement(
   const elapsedCalendarMonths = (departureYear - birthYear) * 12 + (departureMonth - birthMonth);
   const birthdayMonthCompleted = validDate(profile.birthDate) && validDate(profile.desiredDepartureDate)
     && profile.desiredDepartureDate >= addMonths(profile.birthDate, elapsedCalendarMonths);
-  const ageTotalMonths = elapsedCalendarMonths - (birthdayMonthCompleted ? 0 : 1);
+  const ageTotalMonths = datesReady ? elapsedCalendarMonths - (birthdayMonthCompleted ? 0 : 1) : 0;
   const ageYears = Math.floor(ageTotalMonths / 12);
   const ageMonths = ageTotalMonths % 12;
 
@@ -86,24 +88,31 @@ export function calculateRetirement(
   let totalContributedQuarters = 0;
   let agircTotalPoints = 0;
 
-  for (const row of rawCareer) {
-    totalValidatedQuartersFromCareer += row.validatedQuarters;
-    totalContributedQuarters += row.contributedQuarters;
-    agircTotalPoints += row.agircPoints;
-  }
-
-  // Si Mode Express : remplacement direct par les valeurs saisies
   if (isExpressMode && profile.expressData) {
     totalValidatedQuartersFromCareer = profile.expressData.totalQuarters;
     totalContributedQuarters = profile.expressData.contributedQuarters;
     agircTotalPoints = profile.expressData.agircPoints;
+  } else if (datesReady) {
+    const retained = careerQuarters(rawCareer, birthYear, profile.desiredDepartureDate);
+    totalValidatedQuartersFromCareer = Array.from(retained.validatedByYear.values())
+      .reduce((total, quarters) => total + quarters, 0);
+    totalContributedQuarters = retained.contributed;
+    agircTotalPoints = rawCareer
+      .filter((row) => row.year >= birthYear && row.year <= liquidationYear)
+      .reduce((total, row) => total + row.agircPoints, 0);
+  } else {
+    for (const row of rawCareer) {
+      totalValidatedQuartersFromCareer += row.validatedQuarters;
+      totalContributedQuarters += row.contributedQuarters;
+      agircTotalPoints += row.agircPoints;
+    }
   }
 
   const totalValidatedQuarters = totalValidatedQuartersFromCareer;
 
   const longCareer = analyzeLongCareer(profile, rawCareer, legalAgeTotalMonths, requiredQuarters);
   const isCarriereLongue = longCareer.status === 'eligible';
-  const reachesLegalAge = validDate(profile.birthDate) && validDate(profile.desiredDepartureDate)
+  const reachesLegalAge = datesReady
     && profile.desiredDepartureDate >= firstPensionDate(profile.birthDate, legalAgeTotalMonths);
 
   // Taux plein automatique pour situation particulière (Inaptitude, handicap, invalidité - Art. L. 351-8 CSS)
@@ -124,7 +133,7 @@ export function calculateRetirement(
     eligibilityStatus = 'ineligible';
   }
 
-  const samAnalysis = calculateAnnualSalary(profile, rawCareer, birthYear, liquidationYear);
+  const samAnalysis = calculateAnnualSalary(profile, rawCareer, birthYear, datesReady ? liquidationYear : NaN);
   const sam = samAnalysis.amount;
 
   // 6. Liquidation, décote et surcote
@@ -239,7 +248,7 @@ export function calculateRetirement(
       years: ageYears,
       months: ageMonths,
       totalMonths: ageTotalMonths,
-      formatted: `${ageYears} ans ${ageMonths > 0 ? `${ageMonths} mois` : ''}`.trim(),
+      formatted: datesReady ? `${ageYears} ans ${ageMonths > 0 ? `${ageMonths} mois` : ''}`.trim() : 'À renseigner',
     },
     legalAge: {
       years: legalAgeYears,

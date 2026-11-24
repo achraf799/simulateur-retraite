@@ -1,44 +1,20 @@
 import { CareerYear, UserProfile } from '../types/retirement';
-import { getPassForYear, FRF_TO_EUR_RATE } from './passHistory';
-import { getCnavCoeff } from './cnavCoefficients';
+import { toCareerYear } from '../utils/careerEntry';
 
-/**
- * Création d'une ligne de carrière avec calcul automatique du PASS,
- * du salaire retenu, du coefficient CNAV et du salaire revalorisé.
- */
 function createCareerYear(
   year: number,
-  currency: 'EUR' | 'FRF',
+  currency: CareerYear['currency'],
   grossIncome: number,
-  regime: 'CNAV' | 'MSA',
+  regime: CareerYear['regime'],
   validatedQuarters: number,
   contributedQuarters: number,
   agircPoints: number,
-  eventType: 'Activité' | 'Maladie/AT' | 'Maternité' | 'Chômage' | 'AVPF',
-  liquidationYear = 2025
+  eventType: CareerYear['eventType'],
+  liquidationYear = 2025,
 ): CareerYear {
-  const grossIncomeEur =
-    currency === 'FRF' ? Number((grossIncome / FRF_TO_EUR_RATE).toFixed(2)) : grossIncome;
-  const passEur = getPassForYear(year);
-  const retainedSalaryEur = Math.min(grossIncomeEur, passEur);
-  const cnavCoeff = getCnavCoeff(year, liquidationYear);
-  const revaluedSalaryEur = Number((retainedSalaryEur * cnavCoeff).toFixed(2));
-
-  return {
-    year,
-    currency,
-    grossIncome,
-    grossIncomeEur,
-    passEur,
-    retainedSalaryEur,
-    cnavCoeff,
-    revaluedSalaryEur,
-    regime,
-    validatedQuarters,
-    contributedQuarters,
-    agircPoints,
-    eventType,
-  };
+  return toCareerYear({
+    year, currency, grossIncome, regime, validatedQuarters, contributedQuarters, agircPoints, eventType,
+  }, liquidationYear);
 }
 
 /**
@@ -210,17 +186,17 @@ for (let y = 1984; y <= 2025; y++) {
  */
 export const BLANK_PROFILE: UserProfile = {
   nir: '',
-  birthDate: '1965-01-01',
-  sex: 'F',
+  birthDate: '',
+  sex: '',
   childrenCount: 0,
   motherBonusQuarters: false,
-  desiredDepartureDate: '2027-01-01',
-  lastGrossMonthlySalary: 3000,
+  desiredDepartureDate: '',
+  lastGrossMonthlySalary: 0,
   cerEnabled: false,
-  cerResumptionDate: '2027-02-01',
+  cerResumptionDate: '',
   cerFormerEmployer: false,
   cerNewGrossMonthlySalary: 0,
-  careerMode: 'express',
+  careerMode: 'detailed',
   specialCircumstances: {
     earlyCareer: false,
     earlyQuartersCount: 0,
@@ -232,12 +208,6 @@ export const BLANK_PROFILE: UserProfile = {
     automaticFullRate: false,
     fullRateReason: 'none',
     polycotisantMsa: false,
-  },
-  expressData: {
-    totalQuarters: 172,
-    contributedQuarters: 172,
-    estimatedSam: 30000,
-    agircPoints: 6000,
   },
 };
 

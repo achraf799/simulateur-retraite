@@ -27,16 +27,16 @@ export function calculateAnnualSalary(
     yearLimit,
     parentAdjustmentPending: parentalRuleApplies && profile.childrenCount > 0 && profile.samEligibleChildren === undefined,
   };
+  const revaluationYear = getCnavRevaluationYear(liquidationYear);
+  if (revaluationYear === undefined) {
+    return { ...result, source: 'unavailable', amount: 0, years: [], topYears: [] };
+  }
+
   if (profile.careerMode === 'express' && profile.expressData) {
     const amount = profile.expressData.estimatedSam;
     return Number.isFinite(amount) && amount > 0
       ? { ...result, source: 'express', amount, years: [], topYears: [] }
       : { ...result, source: 'unavailable', amount: 0, years: [], topYears: [] };
-  }
-
-  const revaluationYear = getCnavRevaluationYear(liquidationYear);
-  if (revaluationYear === undefined) {
-    return { ...result, source: 'unavailable', amount: 0, years: [], topYears: [] };
   }
 
   const groups = new Map<number, CareerYear[]>();

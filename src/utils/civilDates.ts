@@ -11,3 +11,11 @@ export function addMonths(value: string, months: number): string {
   return new Date(Date.UTC(year, month - 1 + months, Math.min(day, lastDay)))
     .toISOString().slice(0, 10);
 }
+
+export function retirementDateIssue(birthDate: string, departure: string): string | undefined {
+  if (!validDate(birthDate) && !validDate(departure)) return 'Renseignez votre date de naissance et votre date de départ.';
+  if (!validDate(birthDate)) return 'Renseignez votre date de naissance.';
+  if (!validDate(departure) || !departure.endsWith('-01')) return 'Renseignez un mois et une année de départ.';
+  if (departure <= birthDate) return 'La date de départ doit être postérieure à la date de naissance.';
+  return undefined;
+}

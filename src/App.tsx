@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { UserProfile, CareerYear } from './types/retirement';
 import {
   SAKURA_PROFILE,
@@ -16,7 +16,7 @@ import { Step2Career } from './components/wizard/Step2Career';
 import { Step3SpecialCases } from './components/wizard/Step3SpecialCases';
 import { Step4DepartureAndCer } from './components/wizard/Step4DepartureAndCer';
 import { Step5Bilan } from './components/wizard/Step5Bilan';
-import { exportCareerToCsv, importCareerFromCsv } from './utils/csvHelper';
+import { CareerCsvError, exportCareerToCsv, importCareerFromCsv, type CareerImportStatus } from './utils/csvHelper';
 
 export const App: React.FC = () => {
   // ─── State ─────────────────────────────────────────────────────────────
@@ -26,6 +26,9 @@ export const App: React.FC = () => {
   const [currentScenario, setCurrentScenario] = useState<'sakura' | 'lfss2026' | 'blank' | 'custom'>('sakura');
   const [presentationMode, setPresentationMode] = useState<boolean>(false);
 
+  const [importStatus, setImportStatus] = useState<CareerImportStatus>({ kind: 'idle' });
+  const importRevision = useRef(0);
+
   // ─── Reactive calculation engine ───────────────────────────────────────
   const calculationResult = useMemo(() => {
     return calculateRetirement(profile, career);
@@ -33,6 +36,8 @@ export const App: React.FC = () => {
 
   // ─── Scenario loading ──────────────────────────────────────────────────
   const handleLoadScenario = (scenario: 'sakura' | 'lfss2026' | 'blank') => {
+    importRevision.current++;
+    setImportStatus({ kind: 'idle' });
     if (scenario === 'sakura') {
       setProfile({ ...SAKURA_PROFILE });
       setCareer([...SAKURA_CAREER]);
@@ -45,6 +50,7 @@ export const App: React.FC = () => {
       setProfile({ ...BLANK_PROFILE });
       setCareer([...BLANK_CAREER]);
       setCurrentScenario('blank');
+      goToStep(1);
     }
   };
 
@@ -72,6 +78,8 @@ export const App: React.FC = () => {
   };
 
   const handleUpdateCareer = (updated: CareerYear[]) => {
+    importRevision.current++;
+    setImportStatus({ kind: 'idle' });
     setCareer(updated);
     setCurrentScenario('custom');
   };
@@ -83,26 +91,29 @@ export const App: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `releve_carriere_${profile.birthDate || 'profil'}.csv`);
+    link.download = 'releve_carriere.csv';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
-  const handleImportCsv = (csvText: string) => {
+  const handleImportCsv = async (file: File) => {
+    const revision = ++importRevision.current;
+    setImportStatus({ kind: 'loading' });
     try {
-      const departureYear = profile.desiredDepartureDate
-        ? new Date(profile.desiredDepartureDate).getFullYear()
-        : 2025;
+      const csvText = await file.text();
+      if (revision !== importRevision.current) return;
+      const departureYear = Number(profile.desiredDepartureDate.slice(0, 4)) || 2025;
       const imported = importCareerFromCsv(csvText, departureYear);
-      if (imported.length > 0) {
-        setCareer(imported);
-        setCurrentScenario('custom');
-      } else {
-        alert("Erreur lors de l'import : aucun enregistrement valide trouvé.");
-      }
-    } catch {
-      alert("Erreur lors de l'analyse du fichier CSV : format invalide.");
+      setCareer(imported);
+      setCurrentScenario('custom');
+      setImportStatus({ kind: 'success', count: imported.length });
+    } catch (error) {
+      if (revision !== importRevision.current) return;
+      setImportStatus(error instanceof CareerCsvError
+        ? { kind: 'error', message: 'Relevé conservé. Corrigez les lignes signalées puis réimportez le fichier.', issues: error.issues }
+        : { kind: 'error', message: 'Le fichier n’a pas pu être lu. Le relevé est conservé.' });
     }
   };
 
@@ -157,6 +168,7 @@ export const App: React.FC = () => {
             onChangeCareer={handleUpdateCareer}
             onExportCsv={handleExportCsv}
             onImportCsv={handleImportCsv}
+            importStatus={importStatus}
             samAnalysis={calculationResult.samAnalysis}
           />
         )}
@@ -186,6 +198,7 @@ export const App: React.FC = () => {
             profile={profile}
             onChangeProfile={handleUpdateProfile}
             onModifySimulation={() => goToStep(1)}
+            onModifyDeparture={() => goToStep(4)}
           />
         )}
       </main>

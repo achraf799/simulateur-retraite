@@ -140,7 +140,7 @@ export const Step1Identity: React.FC<Step1IdentityProps> = ({ profile, onChangeP
     });
   };
 
-  const birthYear = profile.birthDate ? parseInt(profile.birthDate.split('-')[0], 10) : 1963;
+  const birthYear = profile.birthDate.slice(0, 4);
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -280,7 +280,7 @@ export const Step1Identity: React.FC<Step1IdentityProps> = ({ profile, onChangeP
         </div>
 
         <div>
-          <label className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-2">
+          <label htmlFor="profile-birth-date" className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-2">
             <Calendar className="w-4 h-4 text-institution-600" />
             <span>Date de naissance</span>
             {hasNirYearMonth() && (
@@ -291,13 +291,12 @@ export const Step1Identity: React.FC<Step1IdentityProps> = ({ profile, onChangeP
           </label>
           <input
             type="date"
+            id="profile-birth-date"
             value={profile.birthDate}
             onChange={(e) => handleBirthDateChange(e.target.value)}
             className="w-full px-4 py-3 text-sm rounded-xl border border-slate-300 focus:border-institution-600 focus:ring-4 focus:ring-institution-50 focus:outline-none"
           />
-          <p className="text-xs text-slate-500 mt-1.5">
-            Génération <strong className="text-slate-800">{birthYear}</strong> • Âge légal selon barème Réforme 2023.
-          </p>
+          {birthYear && <p className="mt-1.5 text-xs text-slate-500">Génération {birthYear}</p>}
         </div>
       </div>
 
