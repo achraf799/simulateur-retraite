@@ -437,7 +437,6 @@ export const Step1Identity: React.FC<Step1IdentityProps> = ({ profile, onChangeP
           </div>
         </label>
 
-<<<<<<< HEAD
         {profile.childrenCount > 0 && (
           <label className="block text-sm font-semibold text-slate-800">
             Enfants avec une majoration admissible pour le salaire annuel moyen
@@ -463,10 +462,7 @@ export const Step1Identity: React.FC<Step1IdentityProps> = ({ profile, onChangeP
           </label>
         )}
 
-        {/* Badge impact (sans Sparkles) */}
-=======
         {/* Droits calculés pour les enfants */}
->>>>>>> 0dd3e94 (feat: synchronisation NIR, saisie manuelle des salaires, règles 2025 et rapport d'audit Sakura)
         {profile.childrenCount > 0 && (
           <div className="p-3 bg-tealbrand-50 border border-tealbrand-200 rounded-xl space-y-1 text-xs text-tealbrand-900">
             <div className="font-bold flex items-center gap-1.5 text-tealbrand-800">

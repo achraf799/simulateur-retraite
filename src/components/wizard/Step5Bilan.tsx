@@ -41,7 +41,8 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
   onModifySimulation,
 }) => {
   const [showFormulasAccordion, setShowFormulasAccordion] = useState(false);
-  const [showAuditReport, setShowAuditReport] = useState(true);
+  const [showAuditReport, setShowAuditReport] = useState(false);
+  const isIneligible = result.eligibilityStatus === 'ineligible';
   const cer = result.cerAnalysis;
   const sam = result.samAnalysis;
   const samAvailable = sam.source !== 'unavailable';
@@ -146,43 +147,58 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
 
       {/* 2. CHIFFRES CLÉS EN GRAND & 2 PETITES CARTES EN DESSOUS */}
       <div className="space-y-4">
-        {samAvailable && (
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-7 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
-                  Pension Totale Estimée (Base + Complémentaire)
-                </span>
-                <div className="text-4xl font-black text-institution-800 tracking-tight mt-1">
-                  {result.totalMonthlyGross.toLocaleString('fr-FR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}{' '}
-                  <span className="text-xl font-normal text-slate-500">€ brut / mois</span>
+        {isIneligible ? (
+          <div className="bg-rose-50 rounded-2xl border-2 border-rose-300 p-6 sm:p-7 shadow-xs space-y-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-rose-700 block">
+              Situation à la date demandée ({formatDate(profile.desiredDepartureDate)})
+            </span>
+            <div className="text-2xl sm:text-3xl font-black text-rose-900 tracking-tight">
+              Aucune pension liquidable à la date demandée
+            </div>
+            <p className="text-xs text-rose-800">
+              Les conditions d’âge légal ou de départ anticipé pour carrière longue ne sont pas remplies au{' '}
+              {formatDate(profile.desiredDepartureDate)}. Aucune pension brute, nette ou taux de remplacement n’est liquidable à cette date.
+            </p>
+          </div>
+        ) : (
+          samAvailable && (
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-7 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                    Pension Totale Estimée (Base + Complémentaire)
+                  </span>
+                  <div className="text-4xl font-black text-institution-800 tracking-tight mt-1">
+                    {result.totalMonthlyGross.toLocaleString('fr-FR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    <span className="text-xl font-normal text-slate-500">€ brut / mois</span>
+                  </div>
+                  <div className="text-sm font-bold text-emerald-700 mt-1">
+                    ≈{' '}
+                    {result.totalMonthlyNet.toLocaleString('fr-FR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    € net estimé avant impôt sur le revenu
+                  </div>
                 </div>
-                <div className="text-sm font-bold text-emerald-700 mt-1">
-                  ≈{' '}
-                  {result.totalMonthlyNet.toLocaleString('fr-FR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}{' '}
-                  € net estimé avant impôt sur le revenu
-                </div>
-              </div>
 
-              {/* Badge Taux de remplacement */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-right sm:text-right shrink-0">
-                <span className="text-xs text-slate-500 block">Taux de remplacement brut</span>
-                <div className="text-3xl font-black text-tealbrand-700 mt-0.5">
-                  {result.grossReplacementRate}{' '}
-                  <span className="text-base font-bold text-tealbrand-600">%</span>
+                {/* Badge Taux de remplacement */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-right sm:text-right shrink-0">
+                  <span className="text-xs text-slate-500 block">Taux de remplacement brut</span>
+                  <div className="text-3xl font-black text-tealbrand-700 mt-0.5">
+                    {result.grossReplacementRate}{' '}
+                    <span className="text-base font-bold text-tealbrand-600">%</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                    sur dernier salaire ({profile.lastGrossMonthlySalary.toLocaleString('fr-FR')} €)
+                  </span>
                 </div>
-                <span className="text-[11px] text-slate-400 block mt-0.5">
-                  sur dernier salaire ({profile.lastGrossMonthlySalary.toLocaleString('fr-FR')} €)
-                </span>
               </div>
             </div>
-          </div>
+          )
         )}
 
         {/* 2 Petites cartes : Base & Agirc-Arrco */}
@@ -190,18 +206,29 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
           {/* Carte Retraite de Base */}
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                 <span className="text-xs font-bold uppercase tracking-wider text-institution-700">
                   Retraite de Base (CNAV / LURA)
                 </span>
-                {profile.childrenCount >= 3 && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    +10 % enfants
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {!isIneligible && result.micoApplied && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+                      MICO +{formatEuros(result.micoComplementMonthly)}
+                    </span>
+                  )}
+                  {!isIneligible && profile.childrenCount >= 3 && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      +10 % enfants
+                    </span>
+                  )}
+                </div>
               </div>
 
-              {samAvailable ? (
+              {isIneligible ? (
+                <p className="text-sm font-semibold text-rose-700">
+                  Aucune pension liquidable à la date demandée.
+                </p>
+              ) : samAvailable ? (
                 <>
                   <div className="text-2xl font-black text-slate-900 tracking-tight">
                     {formatEuros(result.basePensionMonthlyGross)} <span className="text-sm font-normal text-slate-500">brut / mois</span>
@@ -209,6 +236,11 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                   <div className="mt-0.5 text-xs font-semibold text-emerald-700">
                     ≈ {formatEuros(result.basePensionMonthlyNet)} net
                   </div>
+                  {result.micoApplied && (
+                    <div className="mt-1.5 text-[11px] text-indigo-800">
+                      Base avant MICO : {formatEuros(result.basePensionMonthlyGrossBeforeMico)} • Complément MICO : +{formatEuros(result.micoComplementMonthly)}
+                    </div>
+                  )}
                 </>
               ) : (
                 <p className="text-sm text-slate-700">
@@ -217,7 +249,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
               )}
             </div>
 
-            {samAvailable && (
+            {!isIneligible && samAvailable && (
               <div className="mt-4 flex justify-between gap-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
                 <span>{sam.source === 'express' ? 'SAM saisi' : `SAM · ${sam.topYears.length} année(s) retenue(s) sur ${sam.yearLimit}`}</span>
                 <strong className="text-slate-800">{formatEuros(sam.amount)}</strong>
@@ -232,27 +264,42 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
           {/* Carte Agirc-Arrco */}
           <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                 <span className="text-xs font-bold uppercase tracking-wider text-tealbrand-700">
                   Retraite Agirc-Arrco
                 </span>
-                {profile.childrenCount >= 3 && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    +10 % enfants (plafonnée)
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {!isIneligible && result.agircAbattementCoeff < 1 && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                      Coeff. {result.agircAbattementCoeff.toFixed(2).replace('.', ',')}
+                    </span>
+                  )}
+                  {!isIneligible && profile.childrenCount >= 3 && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      +10 % enfants (plafonnée)
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className="text-2xl font-black text-slate-900 tracking-tight">
-                {result.agircMonthlyGross.toLocaleString('fr-FR', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}{' '}
-                <span className="text-sm font-normal text-slate-500">€/mois brut</span>
-              </div>
-              <div className="text-xs text-emerald-700 font-semibold mt-0.5">
-                ≈ {result.agircMonthlyNet.toLocaleString('fr-FR')} € net (-10,1 % cotisations)
-              </div>
+              {isIneligible ? (
+                <p className="text-sm font-semibold text-rose-700">
+                  Aucune pension liquidable à la date demandée.
+                </p>
+              ) : (
+                <>
+                  <div className="text-2xl font-black text-slate-900 tracking-tight">
+                    {result.agircMonthlyGross.toLocaleString('fr-FR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{' '}
+                    <span className="text-sm font-normal text-slate-500">€/mois brut</span>
+                  </div>
+                  <div className="text-xs text-emerald-700 font-semibold mt-0.5">
+                    ≈ {result.agircMonthlyNet.toLocaleString('fr-FR')} € net (-10,1 % cotisations)
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex justify-between">
@@ -313,6 +360,10 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 <dt className="font-semibold">Agirc-Arrco au début de la reprise</dt>
                 <dd>{cer.paidComplementaryMonthly === undefined ? 'Plafond à confirmer' : formatEuros(cer.paidComplementaryMonthly) + ' / mois'}</dd>
               </div>
+              <div>
+                <dt className="font-semibold">Ressources mensuelles totales (pensions + reprise)</dt>
+                <dd>{formatEuros(cer.totalCerRevenue)} / mois</dd>
+              </div>
             </dl>
           )}
           {cer.newRightsDetails && <p className="text-sm font-medium">{cer.newRightsDetails}</p>}
@@ -329,7 +380,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
         </section>
       )}
 
-      {samAvailable && (
+      {!isIneligible && samAvailable && (
         <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-4">
           <div>
             <h3 className="font-bold text-sm text-slate-900">

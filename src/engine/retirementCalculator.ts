@@ -15,6 +15,14 @@ import { REPERES_2026, GENERATION_SCALES } from '../constants/parameters2026';
  * - Mesures de suspension LFSS 2026 applicables pour les départs à compter du 01/09/2026
  */
 
+function computeAgircAbattementCoeff(missingQuarters: number): number {
+  if (missingQuarters <= 0) return 1;
+  const capped = Math.min(20, missingQuarters);
+  const first12 = Math.min(12, capped);
+  const next8 = Math.max(0, capped - 12);
+  return Number((1 - first12 * 0.01 - next8 * 0.0125).toFixed(4));
+}
+
 export function calculateRetirement(
   profile: UserProfile,
   rawCareer: CareerYear[]
@@ -36,8 +44,11 @@ export function calculateRetirement(
   const ageYears = Math.floor(ageTotalMonths / 12);
   const ageMonths = ageTotalMonths % 12;
 
-  // 2. Barème de la génération selon la Réforme 2023 (en vigueur en 2025)
-  const appliedRule: 'Réforme 2023' | 'Suspension LFSS 2026' = 'Réforme 2023';
+  // 2. Barème applicable à la date d'effet (Réforme 2023 en 2025 ; Suspension LFSS 2026 à partir du 01/09/2026)
+  const isSuspension2026 = validDate(profile.desiredDepartureDate) && profile.desiredDepartureDate >= '2026-09-01';
+  const appliedRule: 'Réforme 2023' | 'Suspension LFSS 2026' = isSuspension2026
+    ? 'Suspension LFSS 2026'
+    : 'Réforme 2023';
 
   // Recherche dans la table de génération
   const genScale = GENERATION_SCALES.find((s) => {
@@ -52,9 +63,9 @@ export function calculateRetirement(
   let requiredQuarters = 172;
 
   if (genScale) {
-    legalAgeYears = genScale.legalAgeYears2023;
-    legalAgeMonths = genScale.legalAgeMonths2023;
-    requiredQuarters = genScale.quartersRequired2023;
+    legalAgeYears = isSuspension2026 ? genScale.legalAgeYears2026 : genScale.legalAgeYears2023;
+    legalAgeMonths = isSuspension2026 ? genScale.legalAgeMonths2026 : genScale.legalAgeMonths2023;
+    requiredQuarters = isSuspension2026 ? genScale.quartersRequired2026 : genScale.quartersRequired2023;
   } else if (birthYear <= 1960) {
     legalAgeYears = 62;
     legalAgeMonths = 0;
@@ -114,43 +125,15 @@ export function calculateRetirement(
     eligibilityStatus = 'ineligible';
   }
 
-<<<<<<< HEAD
   const samAnalysis = calculateAnnualSalary(profile, rawCareer, birthYear, liquidationYear);
   const sam = samAnalysis.amount;
-=======
-  // 5. Nombre d'années N pour le SAM
-  // Règle générale en vigueur en 2025 : 25 meilleures années (plafonnées au PASS et revalorisées)
-  const samYearsCount = 25;
 
-  let sam = 0;
-  let topYearsList: number[] = [];
-
-  if (isExpressMode && profile.expressData) {
-    sam = profile.expressData.estimatedSam;
-  } else {
-    // Tri des salaires revalorisés pour extraire les N meilleures années
-    const sortedCareer = [...processedCareer].sort(
-      (a, b) => b.revaluedSalaryEur - a.revaluedSalaryEur
-    );
-    topYearsList = sortedCareer.slice(0, samYearsCount).map((r) => r.year);
-
-    // Marquage isTopYear sur la carrière
-    processedCareer.forEach((r) => {
-      r.isTopYear = topYearsList.includes(r.year);
-    });
-
-    const sumTopSalaries = sortedCareer
-      .slice(0, samYearsCount)
-      .reduce((sum, r) => sum + r.revaluedSalaryEur, 0);
-    sam = samYearsCount > 0 ? Number((sumTopSalaries / samYearsCount).toFixed(2)) : 0;
-  }
->>>>>>> 0dd3e94 (feat: synchronisation NIR, saisie manuelle des salaires, règles 2025 et rapport d'audit Sakura)
-
-  // 6. Liquidation, décote et surcote
+  // 6. Liquidation, décote, surcote et coefficient d'abattement Agirc-Arrco
   let liquidationRate = 0.50; // Taux plein
   let decoteQuarters = 0;
   let surcoteQuarters = 0;
   let surcoteRate = 0;
+  let agircAbattementCoeff = 1;
 
   if (eligibilityStatus === 'eligible_taux_plein') {
     liquidationRate = 0.50;
@@ -171,73 +154,136 @@ export function calculateRetirement(
     decoteQuarters = Math.min(20, Math.min(missingQuartersDuration, missingQuartersAge));
     // Décote de 0.625 point par trimestre manquant
     liquidationRate = Math.max(0.375, 0.50 - decoteQuarters * 0.00625);
+
+    // Coefficient de minoration définitif Agirc-Arrco : meilleur coefficient entre durée (<= 20 trim.) et âge (67 ans)
+    const coeffAge = computeAgircAbattementCoeff(missingQuartersAge);
+    const coeffDuration =
+      missingQuartersDuration <= 20
+        ? computeAgircAbattementCoeff(missingQuartersDuration)
+        : coeffAge;
+    agircAbattementCoeff = Math.max(coeffDuration, coeffAge);
   } else {
-    // Inéligible : calcul indicatif avec décote maximale ou taux minoré
-    liquidationRate = 0.375;
+    // Départ refusé : aucune pension liquidable à la date demandée
+    liquidationRate = 0;
+    agircAbattementCoeff = 0;
   }
 
   // Proratisation : MIN(Trimestres, Requis) / Requis
   const proratisation = Math.min(1.0, totalValidatedQuarters / requiredQuarters);
 
-  // 7. Retraite de base (Assurance Retraite / LURA)
-  // Formule : SAM x Taux x Proratisation x (1 + Surcote)
-  const basePensionAnnualBeforeBonus =
-    sam * liquidationRate * proratisation * (1 + surcoteRate);
-  const basePensionMonthlyGrossBeforeBonus = Number(
-    (basePensionAnnualBeforeBonus / 12).toFixed(2)
-  );
-
-  // Majoration enfants (+10% dès 3 enfants nés et élevés, Art. L. 351-12 CSS)
-  const baseChildBonusMonthly =
-    profile.childrenCount >= 3
-      ? Number((basePensionMonthlyGrossBeforeBonus * 0.10).toFixed(2))
-      : 0;
-
-  const basePensionMonthlyGross = Number(
-    (basePensionMonthlyGrossBeforeBonus + baseChildBonusMonthly).toFixed(2)
-  );
-  const basePensionAnnualGross = Number((basePensionMonthlyGross * 12).toFixed(2));
-
-  // Estimation nette (prélèvements sociaux -9.1% au taux normal)
-  const basePensionMonthlyNet = Number(
-    (basePensionMonthlyGross * (1 - REPERES_2026.cotisationsSocialesBaseTaux)).toFixed(2)
-  );
-
-  // 8. Retraite complémentaire Agirc-Arrco
+  // 7. Retraite complémentaire Agirc-Arrco (calculée avant le MICO pour vérifier le plafond total)
   const agircPointValue = REPERES_2026.valeurPointAgircArrco;
-  const agircAnnualGrossBeforeBonus = agircTotalPoints * agircPointValue;
-  const agircMonthlyGrossBeforeBonus = Number(
-    (agircAnnualGrossBeforeBonus / 12).toFixed(2)
-  );
-
-  // Majoration enfants Agirc-Arrco (+10% dès 3 enfants, plafonnée à 2 367,48 €/an au 01/11/2024)
+  let agircMonthlyGrossBeforeBonus = 0;
   let agircChildBonusMonthly = 0;
   let agircChildBonusCapped = false;
-  if (profile.childrenCount >= 3) {
-    const rawBonusMonthly = agircMonthlyGrossBeforeBonus * 0.10;
-    if (rawBonusMonthly > REPERES_2026.plafondMajorationEnfantsAgircMensuel) {
-      agircChildBonusMonthly = REPERES_2026.plafondMajorationEnfantsAgircMensuel;
-      agircChildBonusCapped = true;
-    } else {
-      agircChildBonusMonthly = Number(rawBonusMonthly.toFixed(2));
-      agircChildBonusCapped = false;
+  let agircMonthlyGross = 0;
+  let agircMonthlyNet = 0;
+
+  if (eligibilityStatus !== 'ineligible') {
+    const agircAnnualGrossBeforeBonus =
+      agircTotalPoints * agircPointValue * agircAbattementCoeff;
+    agircMonthlyGrossBeforeBonus = Number(
+      (agircAnnualGrossBeforeBonus / 12).toFixed(2)
+    );
+
+    // Majoration enfants Agirc-Arrco (+10% dès 3 enfants, plafonnée à 2 367,48 €/an au 01/11/2024)
+    let agircChildBonusAnnual = 0;
+    if (profile.childrenCount >= 3) {
+      const rawBonusAnnual = agircAnnualGrossBeforeBonus * 0.10;
+      if (rawBonusAnnual > REPERES_2026.plafondMajorationEnfantsAgircAnnuel) {
+        agircChildBonusAnnual = REPERES_2026.plafondMajorationEnfantsAgircAnnuel;
+        agircChildBonusCapped = true;
+      } else {
+        agircChildBonusAnnual = rawBonusAnnual;
+        agircChildBonusCapped = false;
+      }
     }
+    agircChildBonusMonthly = Number((agircChildBonusAnnual / 12).toFixed(2));
+
+    // Arrondi final unique après annualisation + majoration + mensualisation
+    agircMonthlyGross = Number(
+      ((agircAnnualGrossBeforeBonus + agircChildBonusAnnual) / 12).toFixed(2)
+    );
+
+    // Prélèvements sociaux Agirc-Arrco (-10.1% au taux normal)
+    agircMonthlyNet = Number(
+      (agircMonthlyGross * (1 - REPERES_2026.cotisationsSocialesAgircTaux)).toFixed(2)
+    );
   }
 
-  const agircMonthlyGross = Number(
-    (agircMonthlyGrossBeforeBonus + agircChildBonusMonthly).toFixed(2)
-  );
+  // 8. Retraite de base (Assurance Retraite / LURA) + Minimum Contributif (MICO)
+  let basePensionMonthlyGrossBeforeMico = 0;
+  let micoApplied = false;
+  let micoComplementMonthly = 0;
+  let basePensionMonthlyGrossBeforeBonus = 0;
+  let baseChildBonusMonthly = 0;
+  let basePensionMonthlyGross = 0;
+  let basePensionAnnualGross = 0;
+  let basePensionMonthlyNet = 0;
 
-  // Prélèvements sociaux Agirc-Arrco (-10.1% au taux normal)
-  const agircMonthlyNet = Number(
-    (agircMonthlyGross * (1 - REPERES_2026.cotisationsSocialesAgircTaux)).toFixed(2)
-  );
+  if (eligibilityStatus !== 'ineligible') {
+    // Formule : SAM x Taux x Proratisation x (1 + Surcote)
+    const basePensionAnnualBeforeMico =
+      sam * liquidationRate * proratisation * (1 + surcoteRate);
+    basePensionMonthlyGrossBeforeMico = Number(
+      (basePensionAnnualBeforeMico / 12).toFixed(2)
+    );
+
+    // Minimum contributif (MICO) : taux plein requis + liquidation de toutes les pensions (Art. L. 351-10 CSS)
+    const allPensionsLiquidated = profile.allPensionsLiquidated !== false;
+    if (eligibilityStatus === 'eligible_taux_plein' && allPensionsLiquidated) {
+      const micoBaseProrated =
+        REPERES_2026.micoBaseMensuel2025 * Math.min(1, totalValidatedQuarters / requiredQuarters);
+      const hasMicoMajoration = totalContributedQuarters >= REPERES_2026.micoSeuilTrimestresCotises;
+      const micoMajorationDiff =
+        REPERES_2026.micoMajoreMensuel2025 - REPERES_2026.micoBaseMensuel2025;
+      const micoMajorationProrated = hasMicoMajoration
+        ? micoMajorationDiff * Math.min(1, totalContributedQuarters / requiredQuarters)
+        : 0;
+      const micoTargetMonthly = Number((micoBaseProrated + micoMajorationProrated).toFixed(2));
+
+      if (basePensionMonthlyGrossBeforeMico < micoTargetMonthly) {
+        const rawComplement = Number((micoTargetMonthly - basePensionMonthlyGrossBeforeMico).toFixed(2));
+        const otherPensions = Math.max(0, profile.otherPensionsMonthly || 0);
+        const totalWithRawMico = basePensionMonthlyGrossBeforeMico + rawComplement + agircMonthlyGross + otherPensions;
+        const ecretement = Math.max(0, totalWithRawMico - REPERES_2026.micoPlafondPensionsMensuel2025);
+        micoComplementMonthly = Number(Math.max(0, rawComplement - ecretement).toFixed(2));
+        micoApplied = micoComplementMonthly > 0;
+      }
+    }
+
+    basePensionMonthlyGrossBeforeBonus = Number(
+      (basePensionMonthlyGrossBeforeMico + micoComplementMonthly).toFixed(2)
+    );
+
+    // Majoration enfants (+10% dès 3 enfants nés et élevés, Art. L. 351-12 CSS)
+    baseChildBonusMonthly =
+      profile.childrenCount >= 3
+        ? Number((basePensionMonthlyGrossBeforeBonus * 0.10).toFixed(2))
+        : 0;
+
+    basePensionMonthlyGross = Number(
+      (basePensionMonthlyGrossBeforeBonus + baseChildBonusMonthly).toFixed(2)
+    );
+    basePensionAnnualGross = Number((basePensionMonthlyGross * 12).toFixed(2));
+
+    // Estimation nette (prélèvements sociaux -9.1% au taux normal)
+    basePensionMonthlyNet = Number(
+      (basePensionMonthlyGross * (1 - REPERES_2026.cotisationsSocialesBaseTaux)).toFixed(2)
+    );
+  }
 
   // 9. Totaux et Taux de remplacement
-  const totalMonthlyGross = Number((basePensionMonthlyGross + agircMonthlyGross).toFixed(2));
-  const totalMonthlyNet = Number((basePensionMonthlyNet + agircMonthlyNet).toFixed(2));
+  const totalMonthlyGross =
+    eligibilityStatus === 'ineligible'
+      ? 0
+      : Number((basePensionMonthlyGross + agircMonthlyGross).toFixed(2));
+  const totalMonthlyNet =
+    eligibilityStatus === 'ineligible'
+      ? 0
+      : Number((basePensionMonthlyNet + agircMonthlyNet).toFixed(2));
   const grossReplacementRate =
-    profile.lastGrossMonthlySalary > 0
+    eligibilityStatus !== 'ineligible' && profile.lastGrossMonthlySalary > 0
       ? Number(((totalMonthlyGross / profile.lastGrossMonthlySalary) * 100).toFixed(2))
       : 0;
 
@@ -283,6 +329,9 @@ export function calculateRetirement(
     surcoteQuarters,
     surcoteRate,
     proratisation,
+    basePensionMonthlyGrossBeforeMico,
+    micoApplied,
+    micoComplementMonthly,
     basePensionMonthlyGrossBeforeBonus,
     baseChildBonusMonthly,
     basePensionMonthlyGross,
@@ -290,6 +339,7 @@ export function calculateRetirement(
     basePensionMonthlyNet,
     agircTotalPoints: Number(agircTotalPoints.toFixed(2)),
     agircPointValue,
+    agircAbattementCoeff,
     agircMonthlyGrossBeforeBonus,
     agircChildBonusMonthly,
     agircChildBonusCapped,

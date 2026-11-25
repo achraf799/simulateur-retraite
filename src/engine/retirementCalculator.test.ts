@@ -59,7 +59,10 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
   });
 
   describe('2. Validation du Cas Test 2025 (Barème Réforme 2023 & 25 meilleures années)', () => {
-    const result = calculateRetirement(LFSS_2026_PROFILE, LFSS_2026_CAREER);
+    const result = calculateRetirement(
+      { ...LFSS_2026_PROFILE, desiredDepartureDate: '2025-09-01' },
+      LFSS_2026_CAREER
+    );
 
     it('doit appliquer le barème Réforme 2023 en vigueur en 2025', () => {
       expect(result.appliedRule).toBe('Réforme 2023');

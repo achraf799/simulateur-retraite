@@ -85,6 +85,8 @@ export interface UserProfile {
   careerMode?: 'detailed' | 'express';
   expressData?: ExpressCareerData;
   specialCircumstances?: SpecialCircumstances;
+  allPensionsLiquidated?: boolean; // Toutes les pensions personnelles liquidées (condition MICO)
+  otherPensionsMonthly?: number; // Autres pensions personnelles mensuelles brutes (plafond MICO)
 }
 
 export type CerReductionBand = 'beforeLegalAge' | 'beforeFullRateAge';
@@ -182,6 +184,9 @@ export interface CalculationResult {
   surcoteRate: number;
   proratisation: number; // MIN(validatedQuarters, requiredQuarters) / requiredQuarters
   // Retraite de base
+  basePensionMonthlyGrossBeforeMico: number;
+  micoApplied: boolean;
+  micoComplementMonthly: number;
   basePensionMonthlyGrossBeforeBonus: number;
   baseChildBonusMonthly: number;
   basePensionMonthlyGross: number;
@@ -190,6 +195,7 @@ export interface CalculationResult {
   // Agirc-Arrco
   agircTotalPoints: number;
   agircPointValue: number;
+  agircAbattementCoeff: number;
   agircMonthlyGrossBeforeBonus: number;
   agircChildBonusMonthly: number;
   agircChildBonusCapped: boolean;

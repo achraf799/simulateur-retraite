@@ -11,7 +11,6 @@ import {
   Layers,
   CheckCircle2,
   Info,
-  Sliders,
 } from 'lucide-react';
 
 interface Step3SpecialCasesProps {
@@ -460,6 +459,48 @@ export const Step3SpecialCases: React.FC<Step3SpecialCasesProps> = ({
               </div>
             </div>
           )}
+        </div>
+
+        {/* CARTE 5 : MINIMUM CONTRIBUTIF (MICO) */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                Liquidation de toutes les pensions (Minimum contributif — MICO)
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
+                Le minimum contributif (747,57 €/mois, ou 893,65 €/mois majoré dès 120 trimestres cotisés en 2025)
+                s’applique à taux plein uniquement si toutes vos pensions personnelles sont liquidées et sous le
+                plafond mensuel de 1 394,86 €.
+              </p>
+            </div>
+            <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-800 shrink-0 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={profile.allPensionsLiquidated !== false}
+                onChange={(e) => onChangeProfile({ allPensionsLiquidated: e.target.checked })}
+                className="rounded border-slate-300 text-tealbrand-600 focus:ring-tealbrand-500"
+              />
+              <span>Toutes pensions liquidées</span>
+            </label>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-slate-100">
+            <label htmlFor="other-pensions-monthly" className="text-xs font-semibold text-slate-700">
+              Autres pensions personnelles (hors CNAV et Agirc-Arrco, €/mois brut) :
+            </label>
+            <input
+              id="other-pensions-monthly"
+              type="number"
+              min={0}
+              step={10}
+              value={profile.otherPensionsMonthly ?? 0}
+              onChange={(e) =>
+                onChangeProfile({ otherPensionsMonthly: Math.max(0, Number(e.target.value) || 0) })
+              }
+              className="w-32 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono text-right"
+            />
+          </div>
         </div>
       </div>
     </div>

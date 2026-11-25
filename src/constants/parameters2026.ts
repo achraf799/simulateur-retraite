@@ -33,6 +33,12 @@ export const REPERES_2026 = {
 
   // Âge d'annulation de la décote (taux plein automatique)
   ageTauxPleinAutomatiqueAnnees: 67,
+
+  // Minimum contributif (MICO) 2025 (Circulaire CNAV 2024/40 du 23/12/2024)
+  micoBaseMensuel2025: 747.57,
+  micoMajoreMensuel2025: 893.65,
+  micoPlafondPensionsMensuel2025: 1394.86,
+  micoSeuilTrimestresCotises: 120,
 };
 
 export interface GenerationScale {
