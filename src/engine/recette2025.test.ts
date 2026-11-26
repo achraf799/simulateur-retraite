@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculateRetirement } from './retirementCalculator';
-import { UserProfile } from '../types/retirement';
+import { CareerYear, UserProfile } from '../types/retirement';
+import { SAKURA_CAREER } from '../constants/scenarios';
 
 function makeExpressProfile(overrides: Partial<UserProfile> & {
   birthYear: number;
@@ -230,7 +231,7 @@ describe('Campagne de recette 2025', () => {
     expect(res.totalMonthlyGross).toBe(1968.42);
   });
 
-  it('T13 : Départ refusé — aucune pension liquidable (1963, 01/2025, 170/170, 4 trim précoces)', () => {
+  it('T13 : Départ refusé avec seulement 4 trimestres à 18 et 20 ans', () => {
     const profile = makeExpressProfile({
       birthYear: 1963,
       departureDate: '2025-01-01',
@@ -239,7 +240,8 @@ describe('Campagne de recette 2025', () => {
       points: 5000,
       specialCircumstances: {
         earlyCareer: true,
-        earlyQuartersCount: 4,
+        earlyQuartersCount: 0,
+        earlyCareerQuarters: { 16: 0, 18: 4, 20: 4, 21: 4 },
         careerInterruptions: false,
         sicknessQuarters: 0,
         maternityQuarters: 0,
@@ -251,10 +253,88 @@ describe('Campagne de recette 2025', () => {
       },
     });
     const res = calculateRetirement(profile, []);
+    expect(res.longCareer.status).toBe('notEligible');
     expect(res.eligibilityStatus).toBe('ineligible');
     expect(res.basePensionMonthlyGross).toBe(0);
     expect(res.agircMonthlyGross).toBe(0);
     expect(res.totalMonthlyGross).toBe(0);
+  });
+
+  it('T14 : arrondit la pension totale après addition des montants bruts', () => {
+    const profile = makeExpressProfile({
+      birthYear: 1963,
+      departureDate: '2025-01-01',
+      totalQuarters: 170,
+      contributedQuarters: 170,
+      sam: 34000,
+      points: 5000,
+    });
+    if (profile.specialCircumstances) profile.specialCircumstances.earlyCareerQuarters = { 18: 5 };
+    const result = calculateRetirement(profile, []);
+    expect(result.basePensionMonthlyGross).toBe(1416.67);
+    expect(result.agircMonthlyGross).toBe(599.42);
+    expect(result.totalMonthlyGross).toBe(2016.08);
+  });
+
+  it('T19 : réduit la base selon le revenu soumis à CSG et conserve le salaire brut dans les ressources', () => {
+    const profile = makeExpressProfile({
+      birthYear: 1963,
+      departureDate: '2025-01-01',
+      totalQuarters: 170,
+      sam: 35000,
+      points: 5000,
+      cerEnabled: true,
+      cerResumptionDate: '2025-02-01',
+      cerNewGrossMonthlySalary: 1500,
+      cerPriorThreeMonthsAverage: 3000,
+      cerLastRevaluedSalary: 4000,
+      cerLastTenYearsAverage: 3900,
+    });
+    if (profile.specialCircumstances) profile.specialCircumstances.earlyCareerQuarters = { 18: 5 };
+    const { cerAnalysis } = calculateRetirement(profile, []);
+    expect(cerAnalysis.paidBaseMonthly).toBe(926.83);
+    expect(cerAnalysis.paidComplementaryMonthly).toBe(599.42);
+    expect(cerAnalysis.totalCerRevenue).toBe(3026.25);
+  });
+
+  it('T23 : plafonne à quatre les trimestres CNAV et MSA d’une même année', () => {
+    const profile = makeExpressProfile({
+      birthYear: 1962,
+      departureDate: '2025-07-01',
+      totalQuarters: 169,
+      sam: 32000,
+      points: 4000,
+      careerMode: 'detailed',
+    });
+    const cnavYears: CareerYear[] = Array.from({ length: 43 }, (_, index) => {
+      const year = 1982 + index;
+      const quarters = year === 1982 ? 1 : 4;
+      return {
+        ...SAKURA_CAREER[0],
+        year,
+        currency: 'EUR',
+        grossIncome: year === 2024 ? 31311.15 : 0,
+        validatedQuarters: quarters,
+        contributedQuarters: quarters,
+        agircPoints: year === 2024 ? 4000 : 0,
+      };
+    });
+    const overlap2020: CareerYear = {
+      ...SAKURA_CAREER[0],
+      year: 2020,
+      currency: 'EUR',
+      grossIncome: 0,
+      regime: 'MSA',
+      validatedQuarters: 4,
+      contributedQuarters: 4,
+      agircPoints: 0,
+    };
+    const result = calculateRetirement(profile, [...cnavYears, overlap2020]);
+    expect(result.totalValidatedQuarters).toBe(169);
+    expect(result.totalContributedQuarters).toBe(169);
+    expect(result.surcoteQuarters).toBe(0);
+    expect(result.sam).toBe(32000);
+    expect(result.totalMonthlyGross).toBe(1812.87);
   });
 
   it('T16 : Minimum contributif majoré (1962, 07/2025, 169/169, SAM 12000, 1000 pts)', () => {

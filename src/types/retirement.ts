@@ -88,6 +88,7 @@ export interface UserProfile {
   cerResumptionDate: string; // YYYY-MM-DD
   cerFormerEmployer: boolean;
   cerNewGrossMonthlySalary: number; // EUR
+  cerNewMonthlyIncomeSubjectToCsg?: number;
   cerFirstBasePensionDate?: string;
   cerSeparateComplementaryPension?: boolean;
   cerAllPensionsLiquidated?: boolean;
@@ -121,6 +122,7 @@ export interface CerAnalysisResult {
   baseSuspensionStartDate?: string;
   paidBaseMonthly?: number;
   paidComplementaryMonthly?: number;
+  baseSalarySubjectToCsg?: number;
   periods?: CerReductionPeriod[];
   annualReduction?: number;
   status: 'PLAFONNE' | 'INTEGRAL';

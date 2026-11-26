@@ -40,6 +40,8 @@ interface Step2CareerProps {
   longCareer: LongCareerResult;
   requiredQuarters: number;
   appliedRule: CalculationResult['appliedRule'];
+  totalValidated: number;
+  totalContributed: number;
 }
 
 export const Step2Career: React.FC<Step2CareerProps> = ({
@@ -53,6 +55,8 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   longCareer,
   requiredQuarters,
   appliedRule,
+  totalValidated,
+  totalContributed,
 }) => {
   const isExpress = profile.careerMode === 'express';
   const sam = samAnalysis.amount;
@@ -62,11 +66,12 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
   const [showDetailedTable, setShowDetailedTable] = useState<boolean>(true);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const recordedYears = new Set(career.map(({ year }) => year)).size;
 
   // Valeurs par défaut du mode express si non définies
   const expressData = profile.expressData || {
-    totalQuarters: career.reduce((s, r) => s + r.validatedQuarters, 0) || 170,
-    contributedQuarters: career.reduce((s, r) => s + r.contributedQuarters, 0) || 170,
+    totalQuarters: totalValidated || 170,
+    contributedQuarters: totalContributed || 170,
     estimatedSam: sam || 40000,
     agircPoints: career.reduce((s, r) => s + r.agircPoints, 0) || 9000,
   };
@@ -80,8 +85,8 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
     onChangeProfile({
       careerMode: mode,
       expressData: {
-        totalQuarters: career.reduce((s, r) => s + r.validatedQuarters, 0) || expressData.totalQuarters,
-        contributedQuarters: longCareer.contributedQuarters ?? expressData.contributedQuarters,
+        totalQuarters: totalValidated,
+        contributedQuarters: longCareer.contributedQuarters ?? totalContributed,
         estimatedSam: sam || expressData.estimatedSam,
         agircPoints: career.reduce((s, r) => s + r.agircPoints, 0),
         agircPointsBefore1999: career.reduce((sum, row) => row.year < 1999 ? sum + row.agircPoints : sum, 0) || undefined,
@@ -188,8 +193,6 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
     e.target.value = '';
   };
 
-  const totalValidated = career.reduce((s, r) => s + r.validatedQuarters, 0);
-  const totalContributed = career.reduce((s, r) => s + r.contributedQuarters, 0);
   const totalPoints = career.reduce((s, r) => s + r.agircPoints, 0);
 
   return (
@@ -438,7 +441,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 Synthèse du relevé de carrière
               </div>
               <div className="text-lg font-black text-slate-900 mt-0.5">
-                {career.length} années enregistrées • {totalValidated} trimestres validés
+                {recordedYears} années enregistrées • {totalValidated} trimestres validés
               </div>
               <div className="text-xs text-slate-600 mt-1">
                 {totalContributed} trimestres cotisés par l’activité •{' '}
@@ -788,7 +791,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                         <span>Ajouter une année supplémentaire</span>
                       </button>
                       <span className="text-[11px] text-slate-400">
-                        Total : {career.length} années enregistrées
+                        Total : {recordedYears} années enregistrées
                       </span>
                     </div>
                   </div>

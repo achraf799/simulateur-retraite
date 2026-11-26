@@ -383,6 +383,15 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 <dt className="font-semibold">Salaire brut de reprise</dt>
                 <dd>{formatEuros(profile.cerNewGrossMonthlySalary)} / mois</dd>
               </div>
+              {cer.baseSalarySubjectToCsg !== undefined && (
+                <div>
+                  <dt className="font-semibold">Salaire soumis à la CSG pour le plafond de base</dt>
+                  <dd>
+                    {formatEuros(cer.baseSalarySubjectToCsg)} / mois
+                    {profile.cerNewMonthlyIncomeSubjectToCsg === undefined && ' (estimé)'}
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt className="font-semibold">Retraite de base au début de la reprise</dt>
                 <dd>{cer.paidBaseMonthly === undefined ? 'Plafond à confirmer' : formatEuros(cer.paidBaseMonthly) + ' / mois'}</dd>
@@ -522,6 +531,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                   {samAvailable && (
                     <div className="space-y-1">
                       <p><strong>Total mensuel · {formatEuros(result.totalMonthlyGross)} brut</strong> · {formatEuros(result.totalMonthlyNet)} net estimé avant impôt.</p>
+                      <p className="text-xs">Le total brut est arrondi au centime après addition des deux pensions.</p>
                       {profile.lastGrossMonthlySalary > 0 && (
                         <p>Taux de remplacement brut · {replacementRate} du dernier salaire de {formatEuros(profile.lastGrossMonthlySalary)}.</p>
                       )}

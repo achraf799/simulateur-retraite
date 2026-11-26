@@ -2,7 +2,7 @@ import { CareerYear, UserProfile, CalculationResult } from '../types/retirement'
 import { calculateAnnualSalary } from './annualSalary';
 import { analyzeCer } from './cerCalculator';
 import { calculateAgircChildBonusBands } from './agircArrco';
-import { analyzeLongCareer, firstPensionDate } from './longCareer';
+import { analyzeLongCareer, firstPensionDate, summarizeCareerQuarters } from './longCareer';
 import { addMonths, validDate } from '../utils/civilDates';
 import { REPERES_2026, GENERATION_SCALES } from '../constants/parameters2026';
 
@@ -22,6 +22,12 @@ function computeAgircAbattementCoeff(missingQuarters: number): number {
   const first12 = Math.min(12, capped);
   const next8 = Math.max(0, capped - 12);
   return Number((1 - first12 * 0.01 - next8 * 0.0125).toFixed(4));
+}
+
+function roundEuros(amount: number): number {
+  // Compense l’erreur de représentation des demi-centimes en virgule flottante.
+  const cents = amount * 100;
+  return Math.round(cents + Number.EPSILON * Math.abs(cents)) / 100;
 }
 
 export function calculateRetirement(
@@ -82,26 +88,13 @@ export function calculateRetirement(
   // 3. Calcul de la carrière, revalorisation et trimestres
   const liquidationYear = departureYear;
 
-  const isExpressMode = profile.careerMode === 'express' && !!profile.expressData;
-
-  let totalValidatedQuartersFromCareer = 0;
-  let totalContributedQuarters = 0;
-  let agircTotalPoints = 0;
-
-  for (const row of rawCareer) {
-    totalValidatedQuartersFromCareer += row.validatedQuarters;
-    totalContributedQuarters += row.contributedQuarters;
-    agircTotalPoints += row.agircPoints;
-  }
-
-  // Si Mode Express : remplacement direct par les valeurs saisies
-  if (isExpressMode && profile.expressData) {
-    totalValidatedQuartersFromCareer = profile.expressData.totalQuarters;
-    totalContributedQuarters = profile.expressData.contributedQuarters;
-    agircTotalPoints = profile.expressData.agircPoints;
-  }
-
-  const totalValidatedQuarters = totalValidatedQuartersFromCareer;
+  const expressData = profile.careerMode === 'express' ? profile.expressData : undefined;
+  const quarters = expressData
+    ? { validated: expressData.totalQuarters, contributed: expressData.contributedQuarters }
+    : summarizeCareerQuarters(rawCareer, birthYear, profile.desiredDepartureDate);
+  const totalValidatedQuarters = quarters.validated;
+  const totalContributedQuarters = quarters.contributed;
+  const agircTotalPoints = expressData?.agircPoints ?? rawCareer.reduce((points, row) => points + row.agircPoints, 0);
 
   const longCareer = analyzeLongCareer(profile, rawCareer, legalAgeTotalMonths, requiredQuarters);
   const isCarriereLongue = longCareer.status === 'eligible';
@@ -178,11 +171,12 @@ export function calculateRetirement(
   let agircChildBonusMonthly = 0;
   let agircChildBonusCapped = false;
   let agircMonthlyGross = 0;
+  let rawAgircMonthlyGross = 0;
   let agircMonthlyNet = 0;
   const agircChildBonusBands = eligibilityStatus === 'ineligible' ? [] : calculateAgircChildBonusBands(
     profile.childrenCount,
     rawCareer,
-    isExpressMode ? profile.expressData : undefined,
+    expressData,
   );
 
   if (eligibilityStatus !== 'ineligible') {
@@ -201,9 +195,8 @@ export function calculateRetirement(
     agircChildBonusMonthly = Number((agircChildBonusAnnual / 12).toFixed(2));
 
     // Arrondi final unique après annualisation + majoration + mensualisation
-    agircMonthlyGross = Number(
-      ((agircAnnualGrossBeforeBonus + agircChildBonusAnnual) / 12).toFixed(2)
-    );
+    rawAgircMonthlyGross = (agircAnnualGrossBeforeBonus + agircChildBonusAnnual) / 12;
+    agircMonthlyGross = Number(rawAgircMonthlyGross.toFixed(2));
 
     const annualNetBeforeBonus = agircAnnualGrossBeforeBonus * (1 - REPERES_2026.cotisationsSocialesAgircTaux);
     const annualNetBonus = agircChildBonusAnnual * (1 - REPERES_2026.cotisationsSocialesAgircMajorationEnfantsTaux);
@@ -219,6 +212,7 @@ export function calculateRetirement(
   let basePensionMonthlyGrossBeforeBonus = 0;
   let baseChildBonusMonthly = 0;
   let basePensionMonthlyGross = 0;
+  let rawBaseMonthlyGross = 0;
   let basePensionAnnualGross = 0;
   let basePensionMonthlyNet = 0;
 
@@ -259,7 +253,7 @@ export function calculateRetirement(
     const rawBaseChildBonus = profile.childrenCount >= 3 ? rawBaseMonthlyBeforeBonus * 0.10 : 0;
     baseChildBonusMonthly = Number(rawBaseChildBonus.toFixed(2));
 
-    const rawBaseMonthlyGross = rawBaseMonthlyBeforeBonus + rawBaseChildBonus;
+    rawBaseMonthlyGross = rawBaseMonthlyBeforeBonus + rawBaseChildBonus;
     basePensionMonthlyGross = Number(rawBaseMonthlyGross.toFixed(2));
     basePensionAnnualGross = Number((basePensionMonthlyGross * 12).toFixed(2));
 
@@ -270,10 +264,7 @@ export function calculateRetirement(
   }
 
   // 9. Totaux et Taux de remplacement
-  const totalMonthlyGross =
-    eligibilityStatus === 'ineligible'
-      ? 0
-      : Number((basePensionMonthlyGross + agircMonthlyGross).toFixed(2));
+  const totalMonthlyGross = roundEuros(rawBaseMonthlyGross + rawAgircMonthlyGross);
   const totalMonthlyNet =
     eligibilityStatus === 'ineligible'
       ? 0

@@ -42,7 +42,7 @@ function validQuarterCount(count: number | undefined): count is number {
   return count !== undefined && Number.isInteger(count) && count >= 0;
 }
 
-function careerQuarters(career: CareerYear[], birthYear: number, departure: string) {
+export function summarizeCareerQuarters(career: CareerYear[], birthYear: number, departure: string) {
   const [departureYear, departureMonth] = departure.split('-').map(Number);
   const rowsByYear = new Map<number, Map<CareerYear['regime'], CareerYear[]>>();
   for (const row of career) {
@@ -55,6 +55,7 @@ function careerQuarters(career: CareerYear[], birthYear: number, departure: stri
   }
 
   let contributed = 0;
+  let validatedTotal = 0;
   const validatedByYear = new Map<number, number>();
   for (const [year, regimes] of rowsByYear) {
     let validated = 0;
@@ -65,10 +66,12 @@ function careerQuarters(career: CareerYear[], birthYear: number, departure: stri
       validated += Math.max(0, ...rows.map((row) => validQuarterCount(row.validatedQuarters) ? row.validatedQuarters : 0));
       paid += Math.max(0, ...rows.map((row) => validQuarterCount(row.contributedQuarters) ? row.contributedQuarters : 0));
     }
-    validatedByYear.set(year, Math.min(limit, validated));
+    const retained = Math.min(limit, validated);
+    validatedByYear.set(year, retained);
+    validatedTotal += retained;
     contributed += Math.min(limit, paid);
   }
-  return { contributed, validatedByYear };
+  return { validated: validatedTotal, contributed, validatedByYear };
 }
 
 export function analyzeLongCareer(
@@ -90,7 +93,7 @@ export function analyzeLongCareer(
   }
 
   const express = profile.careerMode === 'express';
-  const recorded = careerQuarters(express ? [] : career, birthYear, departure);
+  const recorded = summarizeCareerQuarters(express ? [] : career, birthYear, departure);
   const confirmed =
     special?.longCareerConfirmedQuarters
     ?? (express ? profile.expressData?.contributedQuarters : undefined);

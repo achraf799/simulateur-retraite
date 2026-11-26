@@ -58,6 +58,7 @@ export const App: React.FC = () => {
         && updated.cerFirstBasePensionDate !== prev.cerFirstBasePensionDate;
       const next = { ...prev, ...updated };
 
+      if (next.cerNewGrossMonthlySalary !== prev.cerNewGrossMonthlySalary) next.cerNewMonthlyIncomeSubjectToCsg = undefined;
       if (birthChanged || departureChanged || firstPensionChanged) next.cerIncomeByPeriod = undefined;
       if ((birthChanged || departureChanged) && next.specialCircumstances) {
         next.specialCircumstances = { ...next.specialCircumstances, longCareerConfirmedQuarters: undefined };
@@ -170,6 +171,8 @@ export const App: React.FC = () => {
             longCareer={calculationResult.longCareer}
             requiredQuarters={calculationResult.requiredQuarters}
             appliedRule={calculationResult.appliedRule}
+            totalValidated={calculationResult.totalValidatedQuarters}
+            totalContributed={calculationResult.totalContributedQuarters}
           />
         )}
 

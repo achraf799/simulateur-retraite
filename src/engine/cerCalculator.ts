@@ -1,5 +1,6 @@
 import { addMonths, validDate } from '../utils/civilDates';
 import { REPERES_2026 } from '../constants/parameters2026';
+import { getPassForYear } from '../constants/passHistory';
 import type {
   CerAnalysisResult,
   CerReductionBand,
@@ -167,7 +168,7 @@ export function analyzeCer(
     return unavailable('Indiquez un salaire de reprise positif ou nul.');
   }
   const monthlySalary = profile.cerNewGrossMonthlySalary;
-  const incomeForCeilings = euros(totalPension + monthlySalary);
+  const grossResumeResources = euros(totalPension + monthlySalary);
   const eligibleForIntegral = resumption >= fullRateBirthday
     || (resumption >= legalBirthday && validatedQuarters >= requiredQuarters);
   if (eligibleForIntegral && profile.cerAllPensionsLiquidated === undefined) {
@@ -182,7 +183,7 @@ export function analyzeCer(
       alertMessage: generatesNewRights
         ? 'Cumul intégral sans plafond de revenus.'
         : 'Les pensions restent versées. Une reprise avant six mois chez le dernier employeur exclut les nouveaux droits de base au titre de cette activité.',
-      waitingMonthsRemaining, waitingPeriodEndDate, totalCerRevenue: incomeForCeilings,
+      waitingMonthsRemaining, waitingPeriodEndDate, totalCerRevenue: grossResumeResources,
       ceilingAmount: Infinity, effectiveMonthlyGrossPension: totalPension,
       paidBaseMonthly: baseMonthly, paidComplementaryMonthly: complementaryMonthly,
       generatesNewRights,
@@ -190,7 +191,18 @@ export function analyzeCer(
     };
   }
 
-  const smic = JANUARY_HOURLY_SMIC[Number(resumption.slice(0, 4))];
+  const resumptionYear = Number(resumption.slice(0, 4));
+  const enteredCsgIncome = profile.cerNewMonthlyIncomeSubjectToCsg;
+  if (enteredCsgIncome !== undefined && (!Number.isFinite(enteredCsgIncome) || enteredCsgIncome < 0)) {
+    return unavailable('Indiquez un salaire de reprise soumis à la CSG positif ou nul.');
+  }
+  // L’abattement de 1,75 % s’applique à la rémunération dans la limite de quatre plafonds.
+  const monthlyAllowanceCeiling = 4 * getPassForYear(resumptionYear) / 12;
+  const baseSalarySubjectToCsg = enteredCsgIncome
+    ?? euros(monthlySalary - Math.min(monthlySalary, monthlyAllowanceCeiling) * 0.0175);
+  const baseIncomeForCeiling = euros(totalPension + baseSalarySubjectToCsg);
+
+  const smic = JANUARY_HOURLY_SMIC[resumptionYear];
   const smicCeiling = smic === undefined ? undefined : euros(smic * 1820 / 12 * 1.6);
   const priorAverage = profile.cerPriorThreeMonthsAverage;
   const baseCeiling = Math.max(priorAverage ?? 0, smicCeiling ?? 0);
@@ -200,12 +212,12 @@ export function analyzeCer(
     smicCeiling ?? 0,
   );
   const baseReduction = priorAverage !== undefined && smicCeiling !== undefined
-    ? euros(Math.min(baseMonthly, Math.max(0, incomeForCeilings - baseCeiling)))
+    ? euros(Math.min(baseMonthly, Math.max(0, baseIncomeForCeiling - baseCeiling)))
     : undefined;
   const paidBaseMonthly = earlyFormerEmployer || baseMonthly === 0 ? 0
-    : incomeForCeilings <= baseCeiling ? baseMonthly
+    : baseIncomeForCeiling <= baseCeiling ? baseMonthly
     : baseReduction === undefined ? undefined : euros(baseMonthly - baseReduction);
-  const paidComplementaryMonthly = complementaryMonthly === 0 || incomeForCeilings <= complementaryCeiling
+  const paidComplementaryMonthly = complementaryMonthly === 0 || grossResumeResources <= complementaryCeiling
     ? complementaryMonthly
     : smicCeiling !== undefined && profile.cerLastRevaluedSalary !== undefined
       && profile.cerLastTenYearsAverage !== undefined ? 0 : undefined;
@@ -225,7 +237,7 @@ export function analyzeCer(
     ceilingAmount: baseCeiling, totalCerRevenue,
     exceedsCeiling: Boolean(baseReduction),
     ecretementAmount: baseReduction ?? 0,
-    paidBaseMonthly, paidComplementaryMonthly, effectiveMonthlyGrossPension,
+    paidBaseMonthly, paidComplementaryMonthly, effectiveMonthlyGrossPension, baseSalarySubjectToCsg,
     newRightsDetails: 'Le cumul plafonné ne crée aucun nouveau droit.',
   };
 }

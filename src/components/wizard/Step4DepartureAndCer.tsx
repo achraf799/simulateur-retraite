@@ -367,7 +367,8 @@ export const Step4DepartureAndCer: React.FC<Step4DepartureAndCerProps> = ({
                 </label>
                 {([
                   ['cerNewGrossMonthlySalary', 'Salaire mensuel brut après reprise (€)'],
-                  ['cerPriorThreeMonthsAverage', 'Moyenne mensuelle brute des trois derniers mois d’activité (€)'],
+                  ['cerNewMonthlyIncomeSubjectToCsg', 'Salaire de reprise soumis à la CSG (€)'],
+                  ['cerPriorThreeMonthsAverage', 'Moyenne mensuelle brute des trois derniers mois d’activité soumise à la CSG (€)'],
                   ['cerLastRevaluedSalary', 'Dernier salaire mensuel revalorisé Agirc-Arrco (€)'],
                   ['cerLastTenYearsAverage', 'Moyenne mensuelle revalorisée sur dix ans Agirc-Arrco (€)'],
                 ] as const).map(([field, label]) => (
@@ -385,6 +386,11 @@ export const Step4DepartureAndCer: React.FC<Step4DepartureAndCerProps> = ({
                       })}
                       className={inputClass}
                     />
+                    {field === 'cerNewMonthlyIncomeSubjectToCsg' && (
+                      <span className="mt-1 block text-xs font-normal text-slate-600">
+                        Facultatif. Laissez vide pour estimer l’assiette à partir du salaire brut avec l’abattement applicable.
+                      </span>
+                    )}
                   </label>
                 ))}
               </div>
