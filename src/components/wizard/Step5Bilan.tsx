@@ -11,10 +11,8 @@ import {
   ChevronUp,
   Award,
   BookOpen,
-  CheckCircle2,
   FileCheck2,
   ListChecks,
-  Info,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -68,6 +66,15 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
   const formatDate = (date: string) => date.split('-').reverse().join('/');
   const formatEuros = (amount: number) =>
     amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+  const formatPercent = (rate: number) =>
+    rate.toLocaleString('fr-FR', { style: 'percent', maximumFractionDigits: 2 });
+  const replacementRate = formatPercent(result.grossReplacementRate / 100);
+  const pensionStatus = result.eligibilityStatus === 'eligible_taux_plein'
+    ? `${result.isCarriereLongue ? 'Carrière longue à taux plein' : 'Taux plein'} (${formatPercent(result.liquidationRate)})`
+    : result.eligibilityStatus === 'eligible_decote' ? `Départ avec décote (${result.decoteQuarters} trim.)` : 'Inéligible au départ';
+  const cerResources = cer.totalCerRevenue === undefined
+    ? 'Total à confirmer après vérification des plafonds'
+    : formatEuros(cer.totalCerRevenue) + ' / mois';
 
   return (
     <div className="max-w-4xl mx-auto space-y-7 animate-fadeIn">
@@ -112,13 +119,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                       : 'bg-rose-200 text-rose-950 border border-rose-300'
                   }`}
                 >
-                  {result.eligibilityStatus === 'eligible_taux_plein'
-                    ? result.isCarriereLongue
-                      ? 'Carrière Longue — Taux Plein 50 %'
-                      : 'Taux Plein (50 %)'
-                    : result.eligibilityStatus === 'eligible_decote'
-                    ? `Départ avec Décote (${result.decoteQuarters} trim.)`
-                    : 'Inéligible au départ'}
+                  {pensionStatus}
                 </span>
 
                 <span className="text-xs px-2 py-0.5 rounded-md bg-white/80 text-slate-700 font-semibold border border-slate-200">
@@ -193,17 +194,17 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                   </div>
                 </div>
 
-                {/* Badge Taux de remplacement */}
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-right sm:text-right shrink-0">
-                  <span className="text-xs text-slate-500 block">Taux de remplacement brut</span>
-                  <div className="text-3xl font-black text-tealbrand-700 mt-0.5">
-                    {result.grossReplacementRate.toLocaleString('fr-FR', { maximumFractionDigits: 2 })}{' '}
-                    <span className="text-base font-bold text-tealbrand-600">%</span>
+                {profile.lastGrossMonthlySalary > 0 && (
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-right shrink-0">
+                    <span className="text-xs text-slate-500 block">Taux de remplacement brut</span>
+                    <div className="text-3xl font-black text-tealbrand-700 mt-0.5">
+                      {replacementRate}
+                    </div>
+                    <span className="text-[11px] text-slate-400 block mt-0.5">
+                      sur dernier salaire ({formatEuros(profile.lastGrossMonthlySalary)})
+                    </span>
                   </div>
-                  <span className="text-[11px] text-slate-400 block mt-0.5">
-                    sur dernier salaire ({profile.lastGrossMonthlySalary.toLocaleString('fr-FR')} €)
-                  </span>
-                </div>
+                )}
               </div>
             </div>
           )
@@ -392,9 +393,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
               </div>
               <div>
                 <dt className="font-semibold">Ressources mensuelles totales (pensions + reprise)</dt>
-                <dd>{cer.totalCerRevenue === undefined
-                  ? 'Total à confirmer après vérification des plafonds'
-                  : formatEuros(cer.totalCerRevenue) + ' / mois'}</dd>
+                <dd>{cerResources}</dd>
               </div>
             </dl>
           )}
@@ -442,134 +441,113 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
         </div>
       )}
 
-      {/* 5. RAPPORT D'AUDIT ET DE CONTRÔLE RÉGLEMENTAIRE (CAS SAKURA 2025) */}
-      <div className="border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-xs">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <button
           type="button"
-          onClick={() => setShowAuditReport(!showAuditReport)}
-          className="w-full p-4 sm:p-5 text-left bg-slate-900 text-white hover:bg-slate-800 transition-colors flex items-center justify-between font-bold text-xs"
+          aria-expanded={showAuditReport}
+          aria-controls="retirement-control-report"
+          onClick={() => setShowAuditReport((open) => !open)}
+          className="flex w-full items-center justify-between gap-3 bg-slate-900 p-4 text-left text-sm font-bold text-white hover:bg-slate-800 sm:p-5"
         >
           <span className="flex items-center gap-2">
-            <FileCheck2 className="w-4 h-4 text-tealbrand-400" />
-            <span>Rapport de Contrôle &amp; Audit Réglementaire (Relevé Sakura • 2026SAKURA_2.pdf)</span>
-            <span className="px-2 py-0.5 rounded-full bg-tealbrand-500/20 text-tealbrand-300 text-[10px] border border-tealbrand-400/30">
-              Conforme 2025
-            </span>
+            <FileCheck2 aria-hidden="true" className="h-4 w-4 text-tealbrand-400" />
+            Rapport de contrôle
           </span>
-          {showAuditReport ? (
-            <ChevronUp className="w-4 h-4 text-slate-400" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-slate-400" />
-          )}
+          {showAuditReport ? <ChevronUp aria-hidden="true" className="h-4 w-4" /> : <ChevronDown aria-hidden="true" className="h-4 w-4" />}
         </button>
 
         {showAuditReport && (
-          <div className="p-6 space-y-6 text-xs text-slate-700 divide-y divide-slate-100">
-            {/* Audit 1 : Identité, LURA et Trimestres */}
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  1. Identité, Régimes alignés (LURA) &amp; Éligibilité Carrière Longue (RACL)
-                </span>
-                <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  VALIDÉ 100%
-                </span>
-              </div>
-              <p className="text-slate-600 leading-relaxed text-[11px]">
-                • <strong>NIR :</strong> <code>2 63 01...</code> (Femme née en janvier 1963).<br />
-                • <strong>Fusion LURA :</strong> Activités salariées au Régime Général (CNAV) et à la MSA Salariée regroupées en une seule liquidation (Art. L. 173-1-2 CSS).<br />
-                • <strong>Carrière longue :</strong> 1 trimestre validé en 1980 + 4 en 1981 = <strong>5 trimestres fin 1981</strong> (année des 18 ans). La condition de début d'activité précoce (&ge; 5 trimestres avant la fin de l'année des 18 ans ou 20 ans) est remplie.<br />
-                • <strong>Trimestres Sakura :</strong> 177 validés, dont 167 cotisés par l’activité. Avec 4 trimestres AVPF retenus, le total carrière longue atteint <strong>171 trimestres pour 170 requis</strong>. Il peut atteindre 173 si la caisse confirme les trimestres assimilés de 1982 et 1995.
+          <section id="retirement-control-report" aria-label="Résultats du rapport de contrôle" className="space-y-5 divide-y divide-slate-200 p-4 text-sm text-slate-700 sm:p-6">
+            <div className="space-y-2">
+              <h3 className="font-bold text-slate-900">Départ et durée d’assurance</h3>
+              <p>{pensionStatus} au {formatDate(profile.desiredDepartureDate)} sous le barème {result.appliedRule}.</p>
+              <p>Âge au départ · {result.ageAtDeparture.formatted}. Âge légal · {result.legalAge.formatted}.</p>
+              <p>
+                {result.totalValidatedQuarters} trimestres validés pour {result.requiredQuarters} requis.
+                {profile.careerMode !== 'express' && ` Le relevé compte ${result.totalContributedQuarters} trimestres cotisés par l’activité.`}
               </p>
+              <LongCareerSummary result={result.longCareer} />
             </div>
 
-            {/* Audit 2 : Plafonnement PASS, conversions FRF/EUR et SAM */}
             <div className="space-y-2 pt-4">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  2. Plafonnement au PASS annuel &amp; Salaire Annuel Moyen (SAM sur 25 ans)
-                </span>
-                <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  CONFORME
-                </span>
-              </div>
-              <p className="text-slate-600 leading-relaxed text-[11px]">
-                • <strong>Conversion Francs &rarr; Euros :</strong> Pour chaque année de 1979 à 2001, les salaires bruts sont convertis au taux officiel de <code>6,55957 FRF = 1 EUR</code>.<br />
-                • <strong>Plafonnement PASS :</strong> Chaque rémunération annuelle est plafonnée au PASS de son année (ex. 104 024 FRF en 1990 sous le PASS de 126 120 FRF ; 64 555 € en 2023 plafonné au PASS de 43 992 €).<br />
-                • <strong>Calcul du SAM :</strong> Somme des 25 meilleures années revalorisées CNAV 2025 = <strong>1 023 084,63 €</strong>. Division par 25 = <strong>40 923,39 €</strong> (conforme au centime près au résultat de l'étude de cas).
-              </p>
+              <h3 className="font-bold text-slate-900">Salaire annuel moyen</h3>
+              {sam.source === 'career' ? (
+                <>
+                  <p>
+                    <strong>{formatEuros(sam.amount)}</strong> après plafonnement et revalorisation des salaires admissibles.
+                  </p>
+                  <p>Années retenues · {sam.topYears.length} sur un maximum de {sam.yearLimit}.</p>
+                  <SamParametersNote analysis={sam} />
+                </>
+              ) : (
+                <p>{sam.source === 'express' ? `SAM saisi en mode Express · ${formatEuros(sam.amount)}.` : 'SAM indisponible. Complétez le relevé ou saisissez une estimation en mode Express.'}</p>
+              )}
             </div>
 
-            {/* Audit 3 : Calcul des Pensions (Base et Agirc-Arrco) */}
-            <div className="space-y-2 pt-4">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  3. Calculs des Pensions de Base &amp; Complémentaire Agirc-Arrco
-                </span>
-                <span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  CONFORME
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <span className="font-bold text-slate-800 block mb-1">Retraite de Base CNAV/MSA :</span>
-                  40 923,39 € &times; 50 % &times; (170 / 170) = 20 461,69 €/an.<br />
-                  Majoration 3 enfants (+10 %) : 20 461,69 &times; 1,10 = <strong>22 507,86 €/an</strong>, soit <strong>1 875,66 €/mois brut</strong> (Net : <strong>1 704,97 €</strong> après -9,1 %).
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <span className="font-bold text-slate-800 block mb-1">Retraite Agirc-Arrco :</span>
-                  8 884,46 pts (fin 2023) + 389,70 pts (2024) = <strong>9 274,16 points</strong>.<br />
-                  Valeur du point 2025 = <strong>1,4386 €</strong> &rarr; 13 341,81 €/an.<br />
-                  Majoration +10 % : <strong>1 223,00 €/mois brut</strong> (Net : <strong>1 099,48 €</strong>).<br />
-                  <em>Note : La variante par tranches historiques (&lt;1999 : 10 %, 1999-2011 : 5 %, 2012+ : 10 %) donne 1 209,00 €/mois.</em>
-                </div>
-              </div>
-              <p className="text-slate-600 text-[11px] mt-1">
-                <strong>Total mensuel brut : 3 098,65 €</strong> (Net : <strong>2 804,45 €</strong>) &bull; Taux de remplacement : <strong>68,9 %</strong> du dernier salaire (4 500 €).
-              </p>
+            <div className="space-y-3 pt-4">
+              <h3 className="font-bold text-slate-900">Pensions mensuelles</h3>
+              {isIneligible ? (
+                <p>Aucune pension liquidable à la date demandée.</p>
+              ) : (
+                <>
+                  <dl className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1 rounded-xl bg-slate-50 p-3">
+                      <dt className="font-semibold text-slate-900">Retraite de base</dt>
+                      {samAvailable ? (
+                        <dd>
+                          <strong>{formatEuros(result.basePensionMonthlyGross)} brut</strong> · {formatEuros(result.basePensionMonthlyNet)} net estimé.
+                          <p className="mt-1 text-xs">Taux de liquidation · {formatPercent(result.liquidationRate)}. Proratisation · {formatPercent(result.proratisation)}.</p>
+                          {result.micoApplied && <p className="text-xs">Complément du minimum contributif · {formatEuros(result.micoComplementMonthly)}.</p>}
+                          {result.baseChildBonusMonthly > 0 && <p className="text-xs">Majoration enfants · {formatEuros(result.baseChildBonusMonthly)}.</p>}
+                        </dd>
+                      ) : <dd>Montant indéterminé en l’absence de SAM.</dd>}
+                    </div>
+                    <div className="space-y-1 rounded-xl bg-slate-50 p-3">
+                      <dt className="font-semibold text-slate-900">Retraite Agirc-Arrco</dt>
+                      <dd>
+                        <strong>{formatEuros(result.agircMonthlyGross)} brut</strong> · {formatEuros(result.agircMonthlyNet)} net estimé.
+                        <p className="mt-1 text-xs">
+                          {result.agircTotalPoints.toLocaleString('fr-FR')} points à {result.agircPointValue.toLocaleString('fr-FR')} €.
+                          {result.agircAbattementCoeff < 1 && ` Coefficient de minoration · ${result.agircAbattementCoeff.toLocaleString('fr-FR')}.`}
+                        </p>
+                        {result.agircChildBonusBands.length > 0 && (
+                          <p className="text-xs">
+                            Majoration enfants · {formatEuros(result.agircChildBonusMonthly)}{result.agircChildBonusCapped ? ' (plafonnée)' : ''}.
+                            {result.agircChildBonusBands.some((band) => band.assumed) && ' Le détail des hypothèses par période figure dans la carte Agirc-Arrco.'}
+                          </p>
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+                  {samAvailable && (
+                    <div className="space-y-1">
+                      <p><strong>Total mensuel · {formatEuros(result.totalMonthlyGross)} brut</strong> · {formatEuros(result.totalMonthlyNet)} net estimé avant impôt.</p>
+                      {profile.lastGrossMonthlySalary > 0 && (
+                        <p>Taux de remplacement brut · {replacementRate} du dernier salaire de {formatEuros(profile.lastGrossMonthlySalary)}.</p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
-            {/* Audit 4 : Cumul Emploi-Retraite & Carence */}
             <div className="space-y-2 pt-4">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
-                  <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  4. Diagnostic Cumul Emploi-Retraite (CER) &amp; Carence de 6 mois
-                </span>
-                <span className="font-mono text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                  ALERTE ROUGE SUSPENSION
-                </span>
-              </div>
-              <p className="text-slate-600 leading-relaxed text-[11px]">
-                • <strong>Départ au 01/01/2025 :</strong> Sakura a 62 ans 0 mois. L'âge légal de sa génération 1963 est de 62 ans et 9 mois. Il s'agit obligatoirement d'un <strong>CER PLAFONNÉ</strong> (Art. L. 161-22 CSS).<br />
-                • <strong>Reprise en février 2025 chez l'ancien employeur :</strong> Le délai de carence légal de 6 mois n'est pas respecté &rarr; <strong>Suspension intégrale de la pension de base</strong> jusqu'à expiration du délai (01/07/2025).<br />
-                • <strong>Recommandations à Sakura :</strong><br />
-                &nbsp;&nbsp;1. Reprendre chez son ancien employeur à partir du <strong>1er juillet 2025</strong> (fin de carence).<br />
-                &nbsp;&nbsp;2. Ou reprendre chez un <strong>nouvel employeur</strong> dès février 2025 (aucun délai de carence).<br />
-                &nbsp;&nbsp;3. Ou décaler son départ au <strong>1er novembre 2025</strong> (âge légal atteint) pour accéder au <strong>CER INTÉGRAL</strong> sans plafond et créateur de nouveaux droits.
-              </p>
+              <h3 className="font-bold text-slate-900">Cumul emploi-retraite</h3>
+              <p>{cer.alertMessage}</p>
+              {showCerResources && <p><strong>Ressources mensuelles après reprise</strong> · {cerResources}.</p>}
+              {profile.cerEnabled && cer.annualReduction !== undefined && (
+                <p>Réduction annuelle estimée · {formatEuros(cer.annualReduction)}.</p>
+              )}
             </div>
 
-            {/* Audit 5 : Analyse des annotations manuscrites du document PDF */}
-            <div className="space-y-2 pt-4">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
-                  <Info className="w-4 h-4 text-institution-600" />
-                  5. Explication des Annotations Manuscrites du document 2026SAKURA_2.pdf
-                </span>
-                <span className="font-mono text-[10px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                  DOC INFO
-                </span>
-              </div>
-              <p className="text-slate-600 leading-relaxed text-[11px]">
-                • <strong>Page 4 (bas de page) :</strong> La mention manuscrite <code>2024 4 trim - 389,70 pt</code> comble le relevé Info Retraite édité au 03/06/2024 (l'année 2024 n'était pas encore clôturée). Elle permet d'atteindre exactement <strong>177 trimestres</strong> et <strong>9 274,16 points</strong> Agirc-Arrco.<br />
-                • <strong>Page 7 (bas de page) :</strong> La mention <code>01/01/2024 31/12/2024 = 4500 € / mois</code> confirme le salaire brut d'activité de la dernière année (54 000 € annuel), utilisé pour calculer le taux de remplacement (68,9 %) et le plafond de cumul emploi-retraite.
+            <details className="pt-4 text-xs text-slate-600">
+              <summary className="cursor-pointer font-semibold">Exemple documentaire · relevé Sakura 2025</summary>
+              <p className="mt-2">
+                Page 4 du relevé, l’annotation pour 2024 indique 4 trimestres et 389,70 points Agirc-Arrco.
+                Page 7, une annotation indique un salaire brut de 4 500 € par mois pour 2024.
               </p>
-            </div>
-          </div>
+            </details>
+          </section>
         )}
       </div>
 
@@ -577,12 +555,13 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
       <div className="border border-slate-200/90 rounded-2xl bg-white overflow-hidden shadow-xs">
         <button
           type="button"
-          onClick={() => setShowFormulasAccordion(!showFormulasAccordion)}
+          aria-expanded={showFormulasAccordion}
+          onClick={() => setShowFormulasAccordion((open) => !open)}
           className="w-full p-4 sm:p-5 text-left bg-slate-50 hover:bg-slate-100/80 transition-colors flex items-center justify-between font-bold text-xs text-slate-800"
         >
           <span className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-tealbrand-600" />
-            🔍 Afficher le détail des formules et du calcul réglementaire (pour le jury)
+            Détail des formules de calcul
           </span>
           {showFormulasAccordion ? (
             <ChevronUp className="w-4 h-4 text-slate-500" />
@@ -608,11 +587,11 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
               )}
             </div>
 
-            {samAvailable && (
+            {!isIneligible && samAvailable && (
               <div className="space-y-2">
                 <h4 className="font-bold text-slate-900">2. Formule de la retraite de base</h4>
                 <div className="rounded-xl bg-slate-900 p-3 font-mono text-tealbrand-300">
-                  Base mensuelle = SAM × taux × proratisation × (1 + surcote) ÷ 12 + majoration enfants
+                  Base mensuelle = SAM × taux × proratisation × (1 + surcote) ÷ 12 + complément MICO + majoration enfants
                 </div>
                 <p>Montant estimé · <strong>{formatEuros(result.basePensionMonthlyGross)} / mois</strong>.</p>
               </div>
@@ -628,9 +607,13 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 Retraite mensuelle brute = (points × valeur du point × coefficient de minoration + majoration annuelle) ÷ 12
               </div>
               <p className="text-slate-600 text-[11px]">
-                La majoration annuelle est calculée en appliquant le taux de chaque période aux points correspondants.
-                Le résultat de cette simulation est de <strong>{formatEuros(result.agircMonthlyGross)} brut par mois</strong>,
-                dont {formatEuros(result.agircChildBonusMonthly)} de majoration pour enfants nés ou élevés.
+                {isIneligible ? 'Aucune pension complémentaire liquidable à la date demandée.' : (
+                  <>
+                    La majoration annuelle est calculée en appliquant le taux de chaque période aux points correspondants.
+                    Le résultat de cette simulation est de <strong>{formatEuros(result.agircMonthlyGross)} brut par mois</strong>,
+                    dont {formatEuros(result.agircChildBonusMonthly)} de majoration pour enfants nés ou élevés.
+                  </>
+                )}
               </p>
             </div>
 

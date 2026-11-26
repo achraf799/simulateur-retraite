@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { AgircLegacyRegime, CareerYear, UserProfile, Currency, LongCareerResult, SamAnalysis, SamIncomeKind, SamYear } from '../../types/retirement';
+import { AgircLegacyRegime, CalculationResult, CareerYear, UserProfile, Currency, LongCareerResult, SamAnalysis, SamIncomeKind, SamYear } from '../../types/retirement';
 import { samIncomeKind } from '../../engine/annualSalary';
 import { SamParametersNote } from '../common/SamParametersNote';
 import { getPassForYear, FRF_TO_EUR_RATE } from '../../constants/passHistory';
 import { getCnavCoeff } from '../../constants/cnavCoefficients';
 import { FormulaTooltip } from '../common/FormulaTooltip';
+import { validDate } from '../../utils/civilDates';
 import {
   Zap,
   FileSpreadsheet,
@@ -37,6 +38,8 @@ interface Step2CareerProps {
   onImportCsv: (csvText: string) => void;
   samAnalysis: SamAnalysis;
   longCareer: LongCareerResult;
+  requiredQuarters: number;
+  appliedRule: CalculationResult['appliedRule'];
 }
 
 export const Step2Career: React.FC<Step2CareerProps> = ({
@@ -48,11 +51,14 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   onImportCsv,
   samAnalysis,
   longCareer,
+  requiredQuarters,
+  appliedRule,
 }) => {
   const isExpress = profile.careerMode === 'express';
   const sam = samAnalysis.amount;
   const samYearsCount = samAnalysis.yearLimit;
   const liquidationYear = new Date(profile.desiredDepartureDate).getUTCFullYear() || 2025;
+  const hasScaleDates = validDate(profile.birthDate) && validDate(profile.desiredDepartureDate);
   const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
   const [showDetailedTable, setShowDetailedTable] = useState<boolean>(true);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -271,7 +277,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
             {/* 1. Trimestres validés */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-700">
+                <label htmlFor="express-validated-quarters" className="text-xs font-bold text-slate-700">
                   Total des trimestres validés
                 </label>
                 <FormulaTooltip
@@ -282,6 +288,8 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 />
               </div>
               <input
+                id="express-validated-quarters"
+                aria-describedby="express-required-quarters"
                 type="number"
                 min="0"
                 max="200"
@@ -291,8 +299,10 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 }
                 className="w-full px-3.5 py-2.5 text-base font-bold text-slate-900 rounded-xl border border-slate-300 focus:border-tealbrand-500 focus:ring-4 focus:ring-tealbrand-50 focus:outline-none font-mono"
               />
-              <p className="text-[11px] text-slate-400">
-                170 trimestres requis pour la génération 1963 (barème 2025)
+              <p id="express-required-quarters" className="text-[11px] text-slate-600">
+                {hasScaleDates
+                  ? `${requiredQuarters} trimestres requis pour la génération ${profile.birthDate.slice(0, 4)} (${appliedRule})`
+                  : 'Renseignez les dates de naissance et de départ pour connaître la durée requise.'}
               </p>
             </div>
 
@@ -335,7 +345,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 </label>
                 <FormulaTooltip
                   title="SAM (Salaire Annuel Moyen)"
-                  formula="Moyenne des 25 meilleures années plafonnées au PASS et revalorisées"
+                  formula={`Moyenne des ${samYearsCount} meilleures années plafonnées au PASS et revalorisées`}
                   explanation="Base de calcul de la retraite du régime général. Ne peut pas dépasser le plafond PASS de l'année."
                   articleCss="Art. R. 351-29 CSS"
                 />

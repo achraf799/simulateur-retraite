@@ -168,6 +168,8 @@ export const App: React.FC = () => {
             onImportCsv={handleImportCsv}
             samAnalysis={calculationResult.samAnalysis}
             longCareer={calculationResult.longCareer}
+            requiredQuarters={calculationResult.requiredQuarters}
+            appliedRule={calculationResult.appliedRule}
           />
         )}
 
