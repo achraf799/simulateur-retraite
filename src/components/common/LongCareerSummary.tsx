@@ -27,6 +27,9 @@ export function LongCareerSummary({ result }: LongCareerSummaryProps) {
       {result.contributedQuarters !== undefined && (
         <p>Durée cotisée ou réputée cotisée · {result.contributedQuarters} / {result.requiredQuarters} trimestres.</p>
       )}
+      {result.possibleContributedQuarters !== undefined && (
+        <p>Jusqu’à {result.possibleContributedQuarters} trimestres si la caisse confirme les périodes assimilées en attente.</p>
+      )}
       {result.safeguardToVerify && (
         <p>Si la durée requise était acquise avant septembre 2023, vérifiez la clause de sauvegarde auprès de votre caisse.</p>
       )}

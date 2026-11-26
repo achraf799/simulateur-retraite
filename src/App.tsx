@@ -64,6 +64,7 @@ export const App: React.FC = () => {
         if (birthChanged) {
           next.specialCircumstances.earlyCareerQuarters = undefined;
           next.specialCircumstances.earlyQuartersCount = 0;
+          next.specialCircumstances.longCareerEstimate = undefined;
         }
       }
       return next;
@@ -72,6 +73,15 @@ export const App: React.FC = () => {
   };
 
   const handleUpdateCareer = (updated: CareerYear[]) => {
+    const quartersChanged = career.length !== updated.length || career.some((row, index) => {
+      const next = updated[index];
+      return row.year !== next.year || row.regime !== next.regime
+        || row.validatedQuarters !== next.validatedQuarters
+        || row.contributedQuarters !== next.contributedQuarters || row.eventType !== next.eventType;
+    });
+    if (quartersChanged && profile.specialCircumstances?.longCareerEstimate) {
+      handleUpdateProfile({ specialCircumstances: { ...profile.specialCircumstances, longCareerEstimate: undefined } });
+    }
     setCareer(updated);
     setCurrentScenario('custom');
   };
@@ -96,8 +106,7 @@ export const App: React.FC = () => {
         : 2025;
       const imported = importCareerFromCsv(csvText, departureYear);
       if (imported.length > 0) {
-        setCareer(imported);
-        setCurrentScenario('custom');
+        handleUpdateCareer(imported);
       } else {
         alert("Erreur lors de l'import : aucun enregistrement valide trouvé.");
       }
@@ -158,6 +167,7 @@ export const App: React.FC = () => {
             onExportCsv={handleExportCsv}
             onImportCsv={handleImportCsv}
             samAnalysis={calculationResult.samAnalysis}
+            longCareer={calculationResult.longCareer}
           />
         )}
 

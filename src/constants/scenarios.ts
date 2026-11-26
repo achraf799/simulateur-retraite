@@ -61,6 +61,7 @@ export const SAKURA_PROFILE: UserProfile = {
   specialCircumstances: {
     earlyCareer: true,
     earlyQuartersCount: 13,
+    longCareerEstimate: { departureDate: '2025-01-01', minimumQuarters: 171, maximumQuarters: 173 },
     careerInterruptions: true,
     sicknessQuarters: 0,
     maternityQuarters: 0,
@@ -72,81 +73,71 @@ export const SAKURA_PROFILE: UserProfile = {
   },
   expressData: {
     totalQuarters: 177,
-    contributedQuarters: 173,
+    contributedQuarters: 171,
     estimatedSam: 40910.48,
     agircPoints: 9274.16,
   },
 };
 
+// Points Agirc-Arrco du relevé Sakura, pages 3 et 4, annotation 2024 comprise.
 export const SAKURA_CAREER: CareerYear[] = [
   // 1979: 2 100 FRF (0 trim)
-  createCareerYear(1979, 'FRF', 2100, 'CNAV', 0, 0, 0, 'Activité'),
+  createCareerYear(1979, 'FRF', 2100, 'CNAV', 0, 0, 3.87, 'Activité'),
   // 1980: 2 650 FRF (1 trim cotisé)
-  createCareerYear(1980, 'FRF', 2650, 'CNAV', 1, 1, 15.2, 'Activité'),
+  createCareerYear(1980, 'FRF', 2650, 'CNAV', 1, 1, 4.46, 'Activité'),
   // 1981: 1 080 + 12 438 FRF = 13 518 FRF (4 trim MSA+CNAV)
-  createCareerYear(1981, 'FRF', 13518, 'CNAV', 4, 4, 78.4, 'Activité'),
-  // 1982: 14 053 FRF (4 trim MSA)
-  createCareerYear(1982, 'FRF', 14053, 'MSA', 4, 4, 82.1, 'Activité'),
+  createCareerYear(1981, 'FRF', 13518, 'CNAV', 4, 4, 39.74, 'Activité'),
+  // 1982 : 3 trimestres d’activité et 1 trimestre de chômage à confirmer pour la carrière longue.
+  createCareerYear(1982, 'FRF', 14053, 'MSA', 4, 3, 37.36, 'Activité'),
   // 1983-1995: 4 trim/an
-  createCareerYear(1983, 'FRF', 56445, 'CNAV', 4, 4, 142.3, 'Activité'),
-  createCareerYear(1984, 'FRF', 66457, 'CNAV', 4, 4, 155.0, 'Activité'),
-  createCareerYear(1985, 'FRF', 72394, 'CNAV', 4, 4, 168.4, 'Activité'),
-  createCareerYear(1986, 'FRF', 76768, 'CNAV', 4, 4, 175.2, 'Activité'),
-  createCareerYear(1987, 'FRF', 82355, 'CNAV', 4, 4, 185.0, 'Activité'),
-  createCareerYear(1988, 'FRF', 57498, 'CNAV', 4, 4, 130.5, 'Activité'),
-  createCareerYear(1989, 'FRF', 98648, 'CNAV', 4, 4, 210.3, 'Activité'),
-  createCareerYear(1990, 'FRF', 104024, 'CNAV', 4, 4, 225.1, 'Activité'),
-  createCareerYear(1991, 'FRF', 68973, 'CNAV', 4, 4, 145.2, 'Activité'),
-  createCareerYear(1992, 'FRF', 98443, 'CNAV', 4, 4, 212.0, 'Activité'),
-  createCareerYear(1993, 'FRF', 101136, 'CNAV', 4, 4, 218.4, 'Activité'),
-  createCareerYear(1994, 'FRF', 88579, 'CNAV', 4, 4, 190.6, 'Activité'),
-  createCareerYear(1995, 'FRF', 24633, 'CNAV', 4, 4, 52.8, 'Activité'),
-  // 1996-1997: APE / AVPF (8 trim validés, mais AVPF limitée à 4 trimestres réputés cotisés pour RACL)
-  createCareerYear(1996, 'FRF', 37498, 'CNAV', 4, 4, 0, 'AVPF'),
-  createCareerYear(1997, 'FRF', 76881 + 1729, 'CNAV', 4, 0, 165.4, 'Activité'),
+  createCareerYear(1983, 'FRF', 56445, 'CNAV', 4, 4, 130.18, 'Activité'),
+  createCareerYear(1984, 'FRF', 66457, 'CNAV', 4, 4, 143.36, 'Activité'),
+  createCareerYear(1985, 'FRF', 72394, 'CNAV', 4, 4, 146.46, 'Activité'),
+  createCareerYear(1986, 'FRF', 76768, 'CNAV', 4, 4, 148.78, 'Activité'),
+  createCareerYear(1987, 'FRF', 82355, 'CNAV', 4, 4, 152.66, 'Activité'),
+  createCareerYear(1988, 'FRF', 57498, 'CNAV', 4, 4, 152.68, 'Activité'),
+  createCareerYear(1989, 'FRF', 98648, 'CNAV', 4, 4, 168.16, 'Activité'),
+  createCareerYear(1990, 'FRF', 104024, 'CNAV', 4, 4, 168.94, 'Activité'),
+  createCareerYear(1991, 'FRF', 68973, 'CNAV', 4, 4, 168.94, 'Activité'),
+  createCareerYear(1992, 'FRF', 98443, 'CNAV', 4, 4, 147.24, 'Activité'),
+  createCareerYear(1993, 'FRF', 101136, 'CNAV', 4, 4, 146.46, 'Activité'),
+  createCareerYear(1994, 'FRF', 88579, 'CNAV', 4, 4, 147.24, 'Activité'),
+  // 1995 : 3 trimestres d’activité et 1 trimestre assimilé à confirmer pour la carrière longue.
+  createCareerYear(1995, 'FRF', 24633, 'CNAV', 4, 3, 34.10, 'Activité'),
+  // 1996-1997 : 8 trimestres validés au titre de l’AVPF, dont 4 retenus pour la carrière longue.
+  createCareerYear(1996, 'FRF', 37498, 'CNAV', 4, 0, 0, 'AVPF'),
+  createCareerYear(1997, 'FRF', 76881 + 1729, 'CNAV', 4, 0, 1.93, 'Activité'),
   // 1998-2001
-  createCareerYear(1998, 'FRF', 79964 + 70441, 'CNAV', 4, 4, 310.2, 'Activité'),
-  createCareerYear(1999, 'FRF', 40783 + 73638, 'CNAV', 4, 4, 235.8, 'Activité'),
-  createCareerYear(2000, 'FRF', 76389, 'CNAV', 4, 4, 158.3, 'Activité'),
-  createCareerYear(2001, 'FRF', 86975, 'CNAV', 4, 4, 178.6, 'Activité'),
+  createCareerYear(1998, 'FRF', 79964 + 70441, 'CNAV', 4, 4, 82.92, 'Activité'),
+  createCareerYear(1999, 'FRF', 40783 + 73638, 'CNAV', 4, 4, 81.99, 'Activité'),
+  createCareerYear(2000, 'FRF', 76389, 'CNAV', 4, 4, 80.77, 'Activité'),
+  createCareerYear(2001, 'FRF', 86975, 'CNAV', 4, 4, 90.60, 'Activité'),
   // 2002-2024 en EUR
-  createCareerYear(2002, 'EUR', 19081, 'CNAV', 4, 4, 185.0, 'Activité'),
-  createCareerYear(2003, 'EUR', 19978, 'CNAV', 4, 4, 192.5, 'Activité'),
-  createCareerYear(2004, 'EUR', 21026, 'CNAV', 4, 4, 201.3, 'Activité'),
-  createCareerYear(2005, 'EUR', 22626, 'CNAV', 4, 4, 215.0, 'Activité'),
-  createCareerYear(2006, 'EUR', 26885, 'CNAV', 4, 4, 245.2, 'Activité'),
-  createCareerYear(2007, 'EUR', 32683, 'CNAV', 4, 4, 290.1, 'Activité'),
-  createCareerYear(2008, 'EUR', 37452, 'CNAV', 4, 4, 325.4, 'Activité'),
-  createCareerYear(2009, 'EUR', 41594, 'CNAV', 4, 4, 345.0, 'Activité'),
-  createCareerYear(2010, 'EUR', 42599, 'CNAV', 4, 4, 350.2, 'Activité'),
-  createCareerYear(2011, 'EUR', 43732, 'CNAV', 4, 4, 355.8, 'Activité'),
-  createCareerYear(2012, 'EUR', 44644, 'CNAV', 4, 4, 360.1, 'Activité'),
-  createCareerYear(2013, 'EUR', 45466, 'CNAV', 4, 4, 365.4, 'Activité'),
-  createCareerYear(2014, 'EUR', 45461 + 4397, 'CNAV', 4, 4, 370.2, 'Activité'),
-  createCareerYear(2015, 'EUR', 49593, 'CNAV', 4, 4, 375.0, 'Activité'),
-  createCareerYear(2016, 'EUR', 59973, 'CNAV', 4, 4, 380.5, 'Activité'),
-  createCareerYear(2017, 'EUR', 59961, 'CNAV', 4, 4, 382.1, 'Activité'),
-  createCareerYear(2018, 'EUR', 59550, 'CNAV', 4, 4, 381.0, 'Activité'),
-  createCareerYear(2019, 'EUR', 63714, 'CNAV', 4, 4, 385.2, 'Activité'),
-  createCareerYear(2020, 'EUR', 73174, 'CNAV', 4, 4, 390.4, 'Activité'),
-  createCareerYear(2021, 'EUR', 62215, 'CNAV', 4, 4, 388.0, 'Activité'),
-  createCareerYear(2022, 'EUR', 61593, 'CNAV', 4, 4, 387.5, 'Activité'),
-  createCareerYear(2023, 'EUR', 64555, 'CNAV', 4, 4, 392.0, 'Activité'),
+  createCareerYear(2002, 'EUR', 19081, 'CNAV', 4, 4, 128.33, 'Activité'),
+  createCareerYear(2003, 'EUR', 19978, 'CNAV', 4, 4, 132.25, 'Activité'),
+  createCareerYear(2004, 'EUR', 21026, 'CNAV', 4, 4, 136.05, 'Activité'),
+  createCareerYear(2005, 'EUR', 22626, 'CNAV', 4, 4, 179.53, 'Activité'),
+  createCareerYear(2006, 'EUR', 26885, 'CNAV', 4, 4, 204.32, 'Activité'),
+  createCareerYear(2007, 'EUR', 32683, 'CNAV', 4, 4, 220.70, 'Activité'),
+  createCareerYear(2008, 'EUR', 37452, 'CNAV', 4, 4, 238.91, 'Activité'),
+  createCareerYear(2009, 'EUR', 41594, 'CNAV', 4, 4, 276.13, 'Activité'),
+  createCareerYear(2010, 'EUR', 42599, 'CNAV', 4, 4, 282.01, 'Activité'),
+  createCareerYear(2011, 'EUR', 43732, 'CNAV', 4, 4, 284.27, 'Activité'),
+  createCareerYear(2012, 'EUR', 44644, 'CNAV', 4, 4, 282.34, 'Activité'),
+  createCareerYear(2013, 'EUR', 45466, 'CNAV', 4, 4, 284.28, 'Activité'),
+  createCareerYear(2014, 'EUR', 45461 + 4397, 'CNAV', 4, 4, 330.41, 'Activité'),
+  createCareerYear(2015, 'EUR', 49593, 'CNAV', 4, 4, 325.19, 'Activité'),
+  createCareerYear(2016, 'EUR', 59973, 'CNAV', 4, 4, 422.89, 'Activité'),
+  createCareerYear(2017, 'EUR', 59961, 'CNAV', 4, 4, 405.48, 'Activité'),
+  createCareerYear(2018, 'EUR', 59550, 'CNAV', 4, 4, 386.02, 'Activité'),
+  createCareerYear(2019, 'EUR', 63714, 'CNAV', 4, 4, 422.37, 'Activité'),
+  createCareerYear(2020, 'EUR', 73174, 'CNAV', 4, 4, 503.38, 'Activité'),
+  createCareerYear(2021, 'EUR', 62215, 'CNAV', 4, 4, 396.30, 'Activité'),
+  createCareerYear(2022, 'EUR', 61593, 'CNAV', 4, 4, 389.48, 'Activité'),
+  createCareerYear(2023, 'EUR', 64555, 'CNAV', 4, 4, 374.98, 'Activité'),
   // 2024: 54 000 € (4 500 €/mois), 389.70 points Agirc-Arrco (total 9 274.16 points)
   createCareerYear(2024, 'EUR', 54000, 'CNAV', 4, 4, 389.70, 'Activité'),
 ];
-
-/**
- * Ajustement fin des points pour que la somme totale fasse exactement 9 274,16 points Agirc-Arrco.
- */
-const pointsTotalCurrent = SAKURA_CAREER.reduce((acc, row) => acc + row.agircPoints, 0);
-const pointsDiff = 9274.16 - pointsTotalCurrent;
-if (Math.abs(pointsDiff) > 0.01) {
-  const row2023 = SAKURA_CAREER.find((r) => r.year === 2023);
-  if (row2023) {
-    row2023.agircPoints = Number((row2023.agircPoints + pointsDiff).toFixed(2));
-  }
-}
 
 /**
  * SCÉNARIO 2 : CAS TEST LFSS 2026

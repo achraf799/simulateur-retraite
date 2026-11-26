@@ -94,8 +94,10 @@ export function analyzeLongCareer(
   const confirmed =
     special?.longCareerConfirmedQuarters
     ?? (express ? profile.expressData?.contributedQuarters : undefined);
+  const estimate = !express && special?.longCareerEstimate?.departureDate === departure
+    ? special.longCareerEstimate : undefined;
   const contributedQuarters = validQuarterCount(confirmed) ? confirmed
-    : express || recorded.validatedByYear.size === 0 ? undefined : recorded.contributed;
+    : estimate?.minimumQuarters ?? (express || recorded.validatedByYear.size === 0 ? undefined : recorded.contributed);
   let previousCount = 0;
   for (const age of EARLY_CAREER_AGES) {
     const declared = special?.earlyCareerQuarters?.[age]
@@ -131,6 +133,7 @@ export function analyzeLongCareer(
   const regularDate = firstPensionDate(birthDate, legalAgeMonths);
   const routeResult = {
     ...basis, contributedQuarters, startAge: route.age,
+    possibleContributedQuarters: validQuarterCount(confirmed) ? undefined : estimate?.maximumQuarters,
     minimumAgeMonths: route.minimumAgeMonths, earliestAgeDate: route.date,
   };
   if (route.date >= regularDate) {

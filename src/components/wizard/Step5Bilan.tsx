@@ -462,7 +462,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 • <strong>NIR :</strong> <code>2 63 01...</code> (Femme née en janvier 1963).<br />
                 • <strong>Fusion LURA :</strong> Activités salariées au Régime Général (CNAV) et à la MSA Salariée regroupées en une seule liquidation (Art. L. 173-1-2 CSS).<br />
                 • <strong>Carrière longue :</strong> 1 trimestre validé en 1980 + 4 en 1981 = <strong>5 trimestres fin 1981</strong> (année des 18 ans). La condition de début d'activité précoce (&ge; 5 trimestres avant la fin de l'année des 18 ans ou 20 ans) est remplie.<br />
-                • <strong>Trimestres cotisés :</strong> 177 trimestres enregistrés fin 2024 (173 au 01/01/2024 + 4 en 2024). Déduction de 4 trimestres AVPF excédentaires (plafonnés à 4 trimestres réputés cotisés pour la RACL) = <strong>173 trimestres cotisés</strong> pour 170 requis. <strong>Départ à taux plein au 01/01/2025 validé.</strong>
+                • <strong>Trimestres Sakura :</strong> 177 validés, dont 167 cotisés par l’activité. Avec 4 trimestres AVPF retenus, le total carrière longue atteint <strong>171 trimestres pour 170 requis</strong>. Il peut atteindre 173 si la caisse confirme les trimestres assimilés de 1982 et 1995.
               </p>
             </div>
 

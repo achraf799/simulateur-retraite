@@ -21,7 +21,21 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
       expect(result.eligibilityStatus).toBe('eligible_taux_plein');
       expect(result.liquidationRate).toBe(0.50);
       expect(result.totalValidatedQuarters).toBe(177);
-      expect(result.totalContributedQuarters).toBe(173);
+      expect(result.totalContributedQuarters).toBe(167);
+      expect(result.longCareer.contributedQuarters).toBe(171);
+      expect(result.longCareer.possibleContributedQuarters).toBe(173);
+    });
+
+    it('reprend les points Agirc-Arrco de chacune des 46 années du relevé Sakura', () => {
+      // Relevé 2026SAKURA, pages 3 et 4 : 1979 à 2024, avec l’annotation manuscrite de 2024.
+      const expected = [
+        3.87, 4.46, 39.74, 37.36, 130.18, 143.36, 146.46, 148.78, 152.66, 152.68,
+        168.16, 168.94, 168.94, 147.24, 146.46, 147.24, 34.10, 0, 1.93, 82.92,
+        81.99, 80.77, 90.60, 128.33, 132.25, 136.05, 179.53, 204.32, 220.70, 238.91,
+        276.13, 282.01, 284.27, 282.34, 284.28, 330.41, 325.19, 422.89, 405.48, 386.02,
+        422.37, 503.38, 396.30, 389.48, 374.98, 389.70,
+      ].map((points, index) => [1979 + index, points]);
+      expect(SAKURA_CAREER.map(({ year, agircPoints }) => [year, agircPoints])).toEqual(expected);
     });
 
     it('retient les 25 meilleures années et calcule le SAM avec le barème 2025', () => {

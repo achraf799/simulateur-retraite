@@ -34,6 +34,7 @@ export interface LongCareerResult {
   minimumAgeMonths?: number;
   earliestAgeDate?: string;
   contributedQuarters?: number;
+  possibleContributedQuarters?: number;
   requiredQuarters?: number;
   safeguardToVerify?: boolean;
   details: string;
@@ -44,6 +45,7 @@ export interface SpecialCircumstances {
   earlyQuartersCount: number; // Nombre de trimestres avant 20 ans (ex: 13 pour Sakura)
   earlyCareerQuarters?: Partial<Record<EarlyCareerAge, number>>;
   longCareerConfirmedQuarters?: number;
+  longCareerEstimate?: { departureDate: string; minimumQuarters: number; maximumQuarters: number };
   careerInterruptions: boolean; // Maladie, maternité, chômage, AVPF
   sicknessQuarters: number;
   maternityQuarters: number;

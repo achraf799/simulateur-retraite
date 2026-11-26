@@ -3,6 +3,24 @@ import { SAKURA_CAREER, SAKURA_PROFILE } from '../constants/scenarios';
 import type { UserProfile } from '../types/retirement';
 import { calculateRetirement } from './retirementCalculator';
 
+const earlyRetirement2027: Pick<UserProfile, 'birthDate' | 'specialCircumstances'> = {
+  birthDate: '1966-12-01',
+  specialCircumstances: {
+    earlyCareer: true,
+    earlyQuartersCount: 0,
+    earlyCareerQuarters: { 16: 4 },
+    longCareerConfirmedQuarters: 172,
+    careerInterruptions: false,
+    sicknessQuarters: 0,
+    maternityQuarters: 0,
+    unemploymentQuarters: 0,
+    avpfQuarters: 0,
+    automaticFullRate: false,
+    fullRateReason: 'none',
+    polycotisantMsa: false,
+  },
+};
+
 function simulateCer(overrides: Partial<UserProfile> = {}) {
   const profile: UserProfile = {
     ...SAKURA_PROFILE,
@@ -31,8 +49,7 @@ describe('Cumul emploi-retraite', () => {
 
   it('réduit euro pour euro avant l’âge légal, sans nouveaux droits', () => {
     const cer = simulateCer({
-      birthDate: '1966-12-01',
-      specialCircumstances: undefined,
+      ...earlyRetirement2027,
       cerIncomeByPeriod: { beforeLegalAge: 5000 },
     });
     expect(cer.annualReduction).toBe(5000);
@@ -48,14 +65,14 @@ describe('Cumul emploi-retraite', () => {
   it('borne la réduction à la pension correspondant à un seul mois d’activité', () => {
     const profile: UserProfile = {
       ...SAKURA_PROFILE,
-      birthDate: '1966-12-01',
+      ...earlyRetirement2027,
       desiredDepartureDate: '2027-01-01',
       cerResumptionDate: '2027-02-01',
       cerActivityEndDate: '2027-02-28',
-      specialCircumstances: undefined,
       cerIncomeByPeriod: { beforeLegalAge: 20000 },
     };
     const result = calculateRetirement(profile, SAKURA_CAREER);
+    expect(result.totalMonthlyGross).toBeGreaterThan(0);
     expect(result.cerAnalysis.annualReduction).toBe(result.totalMonthlyGross);
   });
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CareerYear, UserProfile, Currency, SamAnalysis, SamIncomeKind, SamYear } from '../../types/retirement';
+import { CareerYear, UserProfile, Currency, LongCareerResult, SamAnalysis, SamIncomeKind, SamYear } from '../../types/retirement';
 import { samIncomeKind } from '../../engine/annualSalary';
 import { SamParametersNote } from '../common/SamParametersNote';
 import { getPassForYear, FRF_TO_EUR_RATE } from '../../constants/passHistory';
@@ -36,6 +36,7 @@ interface Step2CareerProps {
   onExportCsv: () => void;
   onImportCsv: (csvText: string) => void;
   samAnalysis: SamAnalysis;
+  longCareer: LongCareerResult;
 }
 
 export const Step2Career: React.FC<Step2CareerProps> = ({
@@ -46,6 +47,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   onExportCsv,
   onImportCsv,
   samAnalysis,
+  longCareer,
 }) => {
   const isExpress = profile.careerMode === 'express';
   const sam = samAnalysis.amount;
@@ -68,7 +70,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
       careerMode: mode,
       expressData: {
         totalQuarters: career.reduce((s, r) => s + r.validatedQuarters, 0) || expressData.totalQuarters,
-        contributedQuarters: career.reduce((s, r) => s + r.contributedQuarters, 0) || expressData.contributedQuarters,
+        contributedQuarters: longCareer.contributedQuarters ?? expressData.contributedQuarters,
         estimatedSam: sam || expressData.estimatedSam,
         agircPoints: career.reduce((s, r) => s + r.agircPoints, 0) || expressData.agircPoints,
       },
@@ -389,10 +391,16 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 {career.length} années enregistrées • {totalValidated} trimestres validés
               </div>
               <div className="text-xs text-slate-600 mt-1">
-                {totalContributed} trimestres cotisés •{' '}
+                {totalContributed} trimestres cotisés par l’activité •{' '}
                 {totalPoints.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts Agirc-Arrco •{' '}
                 SAM · <strong>{samAnalysis.source === 'unavailable' ? 'indisponible' : euro.format(sam)}</strong>
               </div>
+              {longCareer.possibleContributedQuarters !== undefined && (
+                <p className="mt-1 text-xs text-slate-600">
+                  Carrière longue · {longCareer.contributedQuarters} trimestres retenus sur {longCareer.requiredQuarters} requis,
+                  jusqu’à {longCareer.possibleContributedQuarters} si la caisse confirme les périodes assimilées.
+                </p>
+              )}
             </div>
 
             {/* Actions : Ajout manuel, Export, Import, Reset */}
@@ -535,7 +543,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                           <th className="py-2 px-1.5 text-right">Coeff</th>
                           <th className="py-2 px-2 text-right font-bold">Revalorisé (€)</th>
                           <th className="py-2 px-1.5 text-center">Trim. V</th>
-                          <th className="py-2 px-1.5 text-center">Trim. C</th>
+                          <th className="py-2 px-1.5 text-center">Trim. cotisés</th>
                           <th className="py-2 px-2 text-right">Points</th>
                           <th className="py-2 px-1.5 text-center">Top {samYearsCount}</th>
                           <th className="py-2 px-1 text-center">Action</th>
@@ -666,7 +674,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                             <td className="py-1.5 px-2 text-right font-mono">
                               <input
                                 type="number"
-                                step="1"
+                                step="0.01"
                                 min="0"
                                 value={row.agircPoints}
                                 onChange={(e) =>
