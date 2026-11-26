@@ -4,6 +4,7 @@ import { samIncomeKind } from '../../engine/annualSalary';
 import { SamParametersNote } from '../common/SamParametersNote';
 import { getPassForYear, FRF_TO_EUR_RATE } from '../../constants/passHistory';
 import { getCnavCoeff } from '../../constants/cnavCoefficients';
+import { getGenerationScaleForProfile } from '../../constants/parameters2026';
 import { FormulaTooltip } from '../common/FormulaTooltip';
 import {
   Zap,
@@ -51,6 +52,8 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   const sam = samAnalysis.amount;
   const samYearsCount = samAnalysis.yearLimit;
   const liquidationYear = new Date(profile.desiredDepartureDate).getUTCFullYear() || 2025;
+  const { birthYear: profileBirthYear, requiredQuarters: profileRequiredQuarters, appliedRule: profileAppliedRule } =
+    getGenerationScaleForProfile(profile.birthDate, profile.desiredDepartureDate);
   const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
   const [showDetailedTable, setShowDetailedTable] = useState<boolean>(true);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -279,7 +282,8 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 className="w-full px-3.5 py-2.5 text-base font-bold text-slate-900 rounded-xl border border-slate-300 focus:border-tealbrand-500 focus:ring-4 focus:ring-tealbrand-50 focus:outline-none font-mono"
               />
               <p className="text-[11px] text-slate-400">
-                170 trimestres requis pour la génération 1963 (barème 2025)
+                {profileRequiredQuarters} trimestres requis pour la génération {profileBirthYear} (
+                {profileAppliedRule === 'Suspension LFSS 2026' ? 'barème LFSS 2026' : 'barème 2025'})
               </p>
             </div>
 

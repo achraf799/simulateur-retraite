@@ -220,6 +220,8 @@ export const BLANK_PROFILE: UserProfile = {
   cerResumptionDate: '2027-02-01',
   cerFormerEmployer: false,
   cerNewGrossMonthlySalary: 0,
+  allPensionsLiquidated: true,
+  otherPensionsMonthly: 0,
   careerMode: 'express',
   specialCircumstances: {
     earlyCareer: false,

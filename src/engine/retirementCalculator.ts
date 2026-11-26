@@ -3,7 +3,7 @@ import { calculateAnnualSalary } from './annualSalary';
 import { analyzeCer } from './cerCalculator';
 import { analyzeLongCareer, firstPensionDate } from './longCareer';
 import { addMonths, validDate } from '../utils/civilDates';
-import { REPERES_2026, GENERATION_SCALES } from '../constants/parameters2026';
+import { REPERES_2026, getGenerationScaleForProfile } from '../constants/parameters2026';
 
 /**
  * MOTEUR DE CALCUL DE RETRAITE OBLIGATOIRE (CNAV/LURA + AGIRC-ARRCO) & CUMUL EMPLOI-RETRAITE
@@ -45,36 +45,12 @@ export function calculateRetirement(
   const ageMonths = ageTotalMonths % 12;
 
   // 2. Barème applicable à la date d'effet (Réforme 2023 en 2025 ; Suspension LFSS 2026 à partir du 01/09/2026)
-  const isSuspension2026 = validDate(profile.desiredDepartureDate) && profile.desiredDepartureDate >= '2026-09-01';
-  const appliedRule: 'Réforme 2023' | 'Suspension LFSS 2026' = isSuspension2026
-    ? 'Suspension LFSS 2026'
-    : 'Réforme 2023';
-
-  // Recherche dans la table de génération
-  const genScale = GENERATION_SCALES.find((s) => {
-    if (s.birthYear !== birthYear) return false;
-    if (s.birthMonthStart && birthMonth < s.birthMonthStart) return false;
-    if (s.birthMonthEnd && birthMonth > s.birthMonthEnd) return false;
-    return true;
-  });
-
-  let legalAgeYears = 64;
-  let legalAgeMonths = 0;
-  let requiredQuarters = 172;
-
-  if (genScale) {
-    legalAgeYears = isSuspension2026 ? genScale.legalAgeYears2026 : genScale.legalAgeYears2023;
-    legalAgeMonths = isSuspension2026 ? genScale.legalAgeMonths2026 : genScale.legalAgeMonths2023;
-    requiredQuarters = isSuspension2026 ? genScale.quartersRequired2026 : genScale.quartersRequired2023;
-  } else if (birthYear <= 1960) {
-    legalAgeYears = 62;
-    legalAgeMonths = 0;
-    requiredQuarters = 167;
-  } else if (birthYear >= 1969) {
-    legalAgeYears = 64;
-    legalAgeMonths = 0;
-    requiredQuarters = 172;
-  }
+  const {
+    legalAgeYears,
+    legalAgeMonths,
+    requiredQuarters,
+    appliedRule,
+  } = getGenerationScaleForProfile(profile.birthDate, profile.desiredDepartureDate);
 
   const legalAgeTotalMonths = legalAgeYears * 12 + legalAgeMonths;
 

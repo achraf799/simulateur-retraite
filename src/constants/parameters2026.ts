@@ -160,3 +160,66 @@ export const GENERATION_SCALES: GenerationScale[] = [
     quartersRequired2026: 172,
   },
 ];
+
+export interface ProfileGenerationScale {
+  birthYear: number;
+  legalAgeYears: number;
+  legalAgeMonths: number;
+  requiredQuarters: number;
+  appliedRule: 'Réforme 2023' | 'Suspension LFSS 2026';
+}
+
+export function getGenerationScaleForProfile(
+  birthDate: string,
+  desiredDepartureDate: string
+): ProfileGenerationScale {
+  const parsedBirth = birthDate ? new Date(birthDate) : null;
+  const birthYear =
+    parsedBirth && !Number.isNaN(parsedBirth.getTime())
+      ? parsedBirth.getUTCFullYear()
+      : 1963;
+  const birthMonth =
+    parsedBirth && !Number.isNaN(parsedBirth.getTime())
+      ? parsedBirth.getUTCMonth() + 1
+      : 1;
+
+  const isSuspension2026 =
+    /^\d{4}-\d{2}-\d{2}$/.test(desiredDepartureDate) &&
+    desiredDepartureDate >= '2026-09-01';
+  const appliedRule: 'Réforme 2023' | 'Suspension LFSS 2026' = isSuspension2026
+    ? 'Suspension LFSS 2026'
+    : 'Réforme 2023';
+
+  const genScale = GENERATION_SCALES.find((s) => {
+    if (s.birthYear !== birthYear) return false;
+    if (s.birthMonthStart && birthMonth < s.birthMonthStart) return false;
+    if (s.birthMonthEnd && birthMonth > s.birthMonthEnd) return false;
+    return true;
+  });
+
+  let legalAgeYears = 64;
+  let legalAgeMonths = 0;
+  let requiredQuarters = 172;
+
+  if (genScale) {
+    legalAgeYears = isSuspension2026 ? genScale.legalAgeYears2026 : genScale.legalAgeYears2023;
+    legalAgeMonths = isSuspension2026 ? genScale.legalAgeMonths2026 : genScale.legalAgeMonths2023;
+    requiredQuarters = isSuspension2026 ? genScale.quartersRequired2026 : genScale.quartersRequired2023;
+  } else if (birthYear <= 1960) {
+    legalAgeYears = 62;
+    legalAgeMonths = 0;
+    requiredQuarters = 167;
+  } else if (birthYear >= 1969) {
+    legalAgeYears = 64;
+    legalAgeMonths = 0;
+    requiredQuarters = 172;
+  }
+
+  return {
+    birthYear,
+    legalAgeYears,
+    legalAgeMonths,
+    requiredQuarters,
+    appliedRule,
+  };
+}

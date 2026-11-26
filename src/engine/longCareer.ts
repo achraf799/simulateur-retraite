@@ -118,17 +118,25 @@ export function analyzeLongCareer(
     .map((age) => ({ age, minimumAgeMonths: ageAtThreshold(birthDate, age, afterSuspension), date: earliestDate(birthDate, age) }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.minimumAgeMonths - b.minimumAgeMonths)[0];
 
+  const regularDate = firstPensionDate(birthDate, legalAgeMonths);
+
   if (!route) {
+    if (departure >= regularDate) {
+      return {
+        ...basis, contributedQuarters,
+        status: 'regularDeparture',
+        details: 'La date simulée relève du départ à l’âge légal ou après.',
+      };
+    }
     const incomplete = EARLY_CAREER_AGES.some((age) => earlyQuarters[age] === undefined);
     return {
       ...basis, contributedQuarters,
       status: incomplete ? 'unknown' : 'notEligible',
-      details: incomplete ? 'Complétez les trimestres de début de carrière pour vérifier le droit.'
+      details: incomplete ? 'Complétez les trimestres de début de carrière pour vérifier le droit à un départ anticipé.'
         : 'Aucune borne de début de carrière n’atteint le nombre de trimestres requis.',
     };
   }
 
-  const regularDate = firstPensionDate(birthDate, legalAgeMonths);
   const routeResult = {
     ...basis, contributedQuarters, startAge: route.age,
     minimumAgeMonths: route.minimumAgeMonths, earliestAgeDate: route.date,

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateRetirement } from './retirementCalculator';
+import { getGenerationScaleForProfile } from '../constants/parameters2026';
 import { UserProfile } from '../types/retirement';
 
 function makeExpressProfile(overrides: Partial<UserProfile> & {
@@ -258,5 +259,86 @@ describe('Campagne de recette 2025 — 10 cas (5 défauts + 5 non-régressions)'
     expect(resCapped.micoApplied).toBe(true);
     expect(resCapped.micoComplementMonthly).toBeCloseTo(274.98, 2);
     expect(resCapped.basePensionMonthlyGross).toBeCloseTo(774.98, 2);
+  });
+
+  it('Anomalie 1 : getGenerationScaleForProfile suit la génération et la date d’effet', () => {
+    expect(getGenerationScaleForProfile('1962-01-01', '2025-07-01')).toMatchObject({
+      birthYear: 1962,
+      requiredQuarters: 169,
+      appliedRule: 'Réforme 2023',
+    });
+    expect(getGenerationScaleForProfile('1963-01-01', '2025-01-01')).toMatchObject({
+      birthYear: 1963,
+      requiredQuarters: 170,
+      appliedRule: 'Réforme 2023',
+    });
+    expect(getGenerationScaleForProfile('1964-01-01', '2025-07-01')).toMatchObject({
+      birthYear: 1964,
+      requiredQuarters: 171,
+      appliedRule: 'Réforme 2023',
+    });
+    expect(getGenerationScaleForProfile('1964-01-01', '2026-09-01')).toMatchObject({
+      birthYear: 1964,
+      requiredQuarters: 170,
+      appliedRule: 'Suspension LFSS 2026',
+    });
+  });
+
+  it('Anomalie 3 : message carrière longue selon 3 situations (départ ordinaire, anticipé incomplet, refus anticipé)', () => {
+    // 1. Départ ordinaire déjà ouvert (T01) : pas d'avertissement "Complétez les trimestres..."
+    const ordinary = calculateRetirement(
+      makeExpressProfile({
+        birthYear: 1962,
+        departureDate: '2025-07-01',
+        totalQuarters: 169,
+        sam: 36000,
+        points: 6000,
+      }),
+      []
+    );
+    expect(ordinary.longCareer.status).toBe('regularDeparture');
+    expect(ordinary.longCareer.details).not.toContain('Complétez les trimestres');
+
+    // 2. Départ anticipé avec données manquantes (1963, départ à 62 ans avant âge légal 62 ans 9 mois)
+    const earlyMissing = calculateRetirement(
+      makeExpressProfile({
+        birthYear: 1963,
+        departureDate: '2025-01-01',
+        totalQuarters: 170,
+        sam: 35000,
+        points: 5000,
+      }),
+      []
+    );
+    expect(earlyMissing.eligibilityStatus).toBe('ineligible');
+    expect(earlyMissing.longCareer.status).toBe('unknown');
+    expect(earlyMissing.longCareer.details).toContain('Complétez les trimestres de début de carrière');
+
+    // 3. Départ anticipé avec données suffisantes pour conclure à un refus (T13 : 0 à 16 ans, 4 à 18/20/21 ans)
+    const earlyRefused = calculateRetirement(
+      makeExpressProfile({
+        birthYear: 1963,
+        departureDate: '2025-01-01',
+        totalQuarters: 170,
+        sam: 35000,
+        points: 5000,
+        specialCircumstances: {
+          earlyCareer: true,
+          earlyQuartersCount: 4,
+          earlyCareerQuarters: { 16: 0, 18: 4, 20: 4, 21: 4 },
+          careerInterruptions: false,
+          sicknessQuarters: 0,
+          maternityQuarters: 0,
+          unemploymentQuarters: 0,
+          avpfQuarters: 0,
+          automaticFullRate: false,
+          fullRateReason: 'none',
+          polycotisantMsa: false,
+        },
+      }),
+      []
+    );
+    expect(earlyRefused.eligibilityStatus).toBe('ineligible');
+    expect(earlyRefused.longCareer.status).toBe('notEligible');
   });
 });

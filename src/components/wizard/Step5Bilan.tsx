@@ -131,7 +131,9 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
               <p className="text-xs text-slate-700">
                 Âge au départ · {result.ageAtDeparture.formatted}. Âge légal · {result.legalAge.formatted}.
               </p>
-              <LongCareerSummary result={result.longCareer} />
+              {(result.longCareer.status !== 'regularDeparture' || result.longCareer.earliestAgeDate !== undefined) && (
+                <LongCareerSummary result={result.longCareer} />
+              )}
             </div>
           </div>
 
@@ -417,13 +419,13 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
           onClick={() => setShowAuditReport(!showAuditReport)}
           className="w-full p-4 sm:p-5 text-left bg-slate-900 text-white hover:bg-slate-800 transition-colors flex items-center justify-between font-bold text-xs"
         >
-          <span className="flex items-center gap-2">
-            <FileCheck2 className="w-4 h-4 text-tealbrand-400" />
-            <span>Rapport de Contrôle &amp; Audit Réglementaire (Relevé Sakura • 2026SAKURA_2.pdf)</span>
-            <span className="px-2 py-0.5 rounded-full bg-tealbrand-500/20 text-tealbrand-300 text-[10px] border border-tealbrand-400/30">
-              Conforme 2025
+            <span className="flex items-center gap-2">
+              <FileCheck2 className="w-4 h-4 text-tealbrand-400" />
+              <span>Exemple illustratif : Audit du cas Sakura (indépendant de votre simulation)</span>
+              <span className="px-2 py-0.5 rounded-full bg-tealbrand-500/20 text-tealbrand-300 text-[10px] border border-tealbrand-400/30">
+                Exemple 2025
+              </span>
             </span>
-          </span>
           {showAuditReport ? (
             <ChevronUp className="w-4 h-4 text-slate-400" />
           ) : (
