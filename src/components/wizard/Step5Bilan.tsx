@@ -47,8 +47,16 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
   const sam = result.samAnalysis;
   const samAvailable = sam.source !== 'unavailable';
 
-  // Données Graphique Unique Épuré : Dernier salaire vs Pension
-  const chartData = [
+  const showCerResources = profile.cerEnabled && cer.regime === 'before2027' && !cer.unavailable;
+  const chartData = showCerResources ? [
+    { name: 'Dernier salaire brut', 'Dernier salaire brut': profile.lastGrossMonthlySalary },
+    {
+      name: 'Ressources après reprise',
+      'Salaire de reprise': profile.cerNewGrossMonthlySalary,
+      'Retraite de base (LURA)': cer.paidBaseMonthly,
+      'Agirc-Arrco': cer.paidComplementaryMonthly,
+    },
+  ] : [
     {
       name: 'Rémunération vs Retraite',
       'Dernier salaire brut': profile.lastGrossMonthlySalary,
@@ -350,8 +358,12 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
               )}
             </div>
           )}
-          {cer.regime === 'before2027' && !cer.unavailable && (
+          {showCerResources && (
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="font-semibold">Salaire brut de reprise</dt>
+                <dd>{formatEuros(profile.cerNewGrossMonthlySalary)} / mois</dd>
+              </div>
               <div>
                 <dt className="font-semibold">Retraite de base au début de la reprise</dt>
                 <dd>{cer.paidBaseMonthly === undefined ? 'Plafond à confirmer' : formatEuros(cer.paidBaseMonthly) + ' / mois'}</dd>
@@ -362,7 +374,9 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
               </div>
               <div>
                 <dt className="font-semibold">Ressources mensuelles totales (pensions + reprise)</dt>
-                <dd>{formatEuros(cer.totalCerRevenue)} / mois</dd>
+                <dd>{cer.totalCerRevenue === undefined
+                  ? 'Total à confirmer après vérification des plafonds'
+                  : formatEuros(cer.totalCerRevenue) + ' / mois'}</dd>
               </div>
             </dl>
           )}
@@ -380,15 +394,14 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
         </section>
       )}
 
-      {!isIneligible && samAvailable && (
+      {!isIneligible && samAvailable && (!showCerResources || cer.totalCerRevenue !== undefined) && (
         <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-4">
           <div>
             <h3 className="font-bold text-sm text-slate-900">
-              Comparatif Visuel : Dernier Salaire Brut vs Retraite Totale
+              {showCerResources
+                ? 'Dernier salaire brut et ressources après reprise'
+                : 'Dernier salaire brut et retraite totale'}
             </h3>
-            <p className="text-xs text-slate-500">
-              Visualisation directe du maintien de niveau de vie entre votre activité et votre retraite.
-            </p>
           </div>
 
           <div className="h-60 w-full pt-2">
@@ -396,12 +409,13 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
               <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                 <XAxis type="number" unit=" €" tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" hide />
+                <YAxis type="category" dataKey="name" hide={!showCerResources} width={155} tick={{ fontSize: 11 }} />
                 <Tooltip
                   formatter={(val: number) => [`${val.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`]}
                 />
                 <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
                 <Bar dataKey="Dernier salaire brut" fill="#64748b" radius={[0, 6, 6, 0]} />
+                {showCerResources && <Bar dataKey="Salaire de reprise" stackId="pension" fill="#8b5e34" />}
                 <Bar dataKey="Retraite de base (LURA)" stackId="pension" fill="#1d5e9b" />
                 <Bar dataKey="Agirc-Arrco" stackId="pension" fill="#0d9488" radius={[0, 6, 6, 0]} />
               </BarChart>

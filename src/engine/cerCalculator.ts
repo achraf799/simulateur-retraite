@@ -52,7 +52,6 @@ export function analyzeCer(
     waitingMonthsRemaining: 0,
     waitingPeriodEndDate: '',
     ceilingAmount: 0,
-    totalCerRevenue: 0,
     exceedsCeiling: false,
     ecretementAmount: 0,
     generatesNewRights: false,
@@ -167,7 +166,8 @@ export function analyzeCer(
   if (!Number.isFinite(profile.cerNewGrossMonthlySalary) || profile.cerNewGrossMonthlySalary < 0) {
     return unavailable('Indiquez un salaire de reprise positif ou nul.');
   }
-  const totalCerRevenue = euros(totalPension + profile.cerNewGrossMonthlySalary);
+  const monthlySalary = profile.cerNewGrossMonthlySalary;
+  const incomeForCeilings = euros(totalPension + monthlySalary);
   const eligibleForIntegral = resumption >= fullRateBirthday
     || (resumption >= legalBirthday && validatedQuarters >= requiredQuarters);
   if (eligibleForIntegral && profile.cerAllPensionsLiquidated === undefined) {
@@ -182,7 +182,7 @@ export function analyzeCer(
       alertMessage: generatesNewRights
         ? 'Cumul intégral sans plafond de revenus.'
         : 'Les pensions restent versées. Une reprise avant six mois chez le dernier employeur exclut les nouveaux droits de base au titre de cette activité.',
-      waitingMonthsRemaining, waitingPeriodEndDate, totalCerRevenue,
+      waitingMonthsRemaining, waitingPeriodEndDate, totalCerRevenue: incomeForCeilings,
       ceilingAmount: Infinity, effectiveMonthlyGrossPension: totalPension,
       paidBaseMonthly: baseMonthly, paidComplementaryMonthly: complementaryMonthly,
       generatesNewRights,
@@ -200,16 +200,19 @@ export function analyzeCer(
     smicCeiling ?? 0,
   );
   const baseReduction = priorAverage !== undefined && smicCeiling !== undefined
-    ? euros(Math.min(baseMonthly, Math.max(0, totalCerRevenue - baseCeiling)))
+    ? euros(Math.min(baseMonthly, Math.max(0, incomeForCeilings - baseCeiling)))
     : undefined;
-  const paidBaseMonthly = earlyFormerEmployer ? 0
-    : totalCerRevenue <= baseCeiling ? baseMonthly
+  const paidBaseMonthly = earlyFormerEmployer || baseMonthly === 0 ? 0
+    : incomeForCeilings <= baseCeiling ? baseMonthly
     : baseReduction === undefined ? undefined : euros(baseMonthly - baseReduction);
-  const paidComplementaryMonthly = totalCerRevenue <= complementaryCeiling ? complementaryMonthly
+  const paidComplementaryMonthly = complementaryMonthly === 0 || incomeForCeilings <= complementaryCeiling
+    ? complementaryMonthly
     : smicCeiling !== undefined && profile.cerLastRevaluedSalary !== undefined
       && profile.cerLastTenYearsAverage !== undefined ? 0 : undefined;
   const effectiveMonthlyGrossPension = paidBaseMonthly === undefined || paidComplementaryMonthly === undefined
     ? undefined : euros(paidBaseMonthly + paidComplementaryMonthly);
+  const totalCerRevenue = effectiveMonthlyGrossPension === undefined
+    ? undefined : euros(monthlySalary + effectiveMonthlyGrossPension);
 
   return {
     ...result,

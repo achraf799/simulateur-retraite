@@ -116,7 +116,7 @@ export interface CerAnalysisResult {
   waitingMonthsRemaining: number;
   waitingPeriodEndDate: string;
   ceilingAmount: number;
-  totalCerRevenue: number;
+  totalCerRevenue?: number;
   exceedsCeiling: boolean;
   ecretementAmount: number;
   effectiveMonthlyGrossPension?: number;

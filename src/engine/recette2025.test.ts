@@ -55,7 +55,7 @@ function makeExpressProfile(overrides: Partial<UserProfile> & {
   };
 }
 
-describe('Campagne de recette 2025 — 10 cas (5 défauts + 5 non-régressions)', () => {
+describe('Campagne de recette 2025', () => {
   // --- NON-REGRESSIONS ---
   it('T01 : Carrière complète (1962, départ 07/2025, 169/169, SAM 36000, 6000 pts)', () => {
     const profile = makeExpressProfile({
@@ -136,6 +136,34 @@ describe('Campagne de recette 2025 — 10 cas (5 défauts + 5 non-régressions)'
     expect(res.cerAnalysis.status).toBe('INTEGRAL');
     expect(res.totalMonthlyGross).toBeCloseTo(2219.30, 2);
     expect(res.cerAnalysis.totalCerRevenue).toBeCloseTo(4419.30, 2);
+  });
+
+  it.each([
+    ['T21', '2025-02-01', 0, 1199.42],
+    ['T22', '2025-07-01', 1458.33, 2657.75],
+  ] as const)('%s : ressources avec reprise chez le dernier employeur', (_, resumptionDate, paidBase, resources) => {
+    const profile = makeExpressProfile({
+      birthYear: 1963,
+      departureDate: '2025-01-01',
+      totalQuarters: 170,
+      sam: 35000,
+      points: 5000,
+      cerEnabled: true,
+      cerFormerEmployer: true,
+      cerResumptionDate: resumptionDate,
+      cerNewGrossMonthlySalary: 600,
+      cerPriorThreeMonthsAverage: 2500,
+      cerLastRevaluedSalary: 3000,
+      cerLastTenYearsAverage: 2900,
+    });
+    if (profile.specialCircumstances) {
+      profile.specialCircumstances.earlyCareer = true;
+      profile.specialCircumstances.earlyCareerQuarters = { 20: 5 };
+    }
+    const { cerAnalysis } = calculateRetirement(profile, []);
+    expect(cerAnalysis.paidBaseMonthly).toBe(paidBase);
+    expect(cerAnalysis.paidComplementaryMonthly).toBe(599.42);
+    expect(cerAnalysis.totalCerRevenue).toBe(resources);
   });
 
   // --- DÉFAUTS À CORRIGER ---
