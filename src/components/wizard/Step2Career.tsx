@@ -383,7 +383,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 </label>
                 <FormulaTooltip
                   title="Points Agirc-Arrco"
-                  formula="Total points × Valeur du point (1,4386 €)"
+                  formula="Total des points × Valeur du point à la date de départ"
                   explanation="Nombre de points inscrits sur votre relevé de situation individuelle (RIS)."
                   articleCss="Accord ANI Agirc-Arrco"
                 />

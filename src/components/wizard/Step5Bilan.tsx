@@ -45,6 +45,8 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
   const sam = result.samAnalysis;
   const samAvailable = sam.source !== 'unavailable';
   const pointsPending = result.agircPointsPending;
+  const { agircArrco } = result.pensionScales;
+  const agircPointValue = result.agircPointValue.toLocaleString('fr-FR', { minimumFractionDigits: 4 });
   const pensionUnavailable = result.longCareer.inputError ?? 'Aucune pension liquidable à la date demandée.';
 
   const showCerResources = profile.cerEnabled && cer.regime === 'before2027' && !cer.unavailable;
@@ -264,6 +266,9 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                       Base avant MICO : {formatEuros(result.basePensionMonthlyGrossBeforeMico)} • Complément MICO : +{formatEuros(result.micoComplementMonthly)}
                     </div>
                   )}
+                  {result.micoProjected && (
+                    <p className="mt-1 text-xs text-amber-900">Projection du minimum contributif selon le barème connu.</p>
+                  )}
                   {surcoteNote && <p className="mt-1 text-xs text-slate-600">{surcoteNote}</p>}
                   {pointsPending && result.eligibilityStatus === 'eligible_taux_plein' && (
                     <p className="mt-1 text-xs text-slate-600">Montant brut hors éventuel minimum contributif.</p>
@@ -334,6 +339,9 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                   {result.agircChildBonusBands.length > 0 && (
                     <div className="mt-3 text-xs text-slate-600">
                       <p className="font-semibold">Majoration pour enfants nés ou élevés · {formatEuros(result.agircChildBonusMonthly)} brut / mois</p>
+                      {result.agircChildBonusCapped && (
+                        <p>Plafond annuel de {formatEuros(agircArrco.annualChildBonusCap)}.</p>
+                      )}
                       <ul className="mt-1 list-disc space-y-0.5 pl-4">
                         {result.agircChildBonusBands.map((band) => (
                           <li key={`${band.label}:${band.assumed}`}>
@@ -352,9 +360,13 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
             <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex justify-between">
               <span>Points acquis :</span>
               <strong className="text-slate-800">
-                {result.agircTotalPoints.toLocaleString('fr-FR')} pts (valeur {result.agircPointValue.toLocaleString('fr-FR')} €)
+                {result.agircTotalPoints.toLocaleString('fr-FR')} pts (valeur {agircPointValue} €)
               </strong>
             </div>
+            <p className={`mt-1 text-xs ${agircArrco.projected ? 'text-amber-900' : 'text-slate-500'}`}>
+              {agircArrco.projected ? 'Projection selon le barème Agirc-Arrco du' : 'Barème Agirc-Arrco du'}{' '}
+              {formatDate(agircArrco.effectiveFrom)}.
+            </p>
           </div>
         </div>
       </div>
@@ -543,7 +555,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                         <dd>
                           <strong>{formatEuros(result.agircMonthlyGross)} brut</strong> · {formatEuros(result.agircMonthlyNet)} net estimé.
                           <p className="mt-1 text-xs">
-                            {result.agircTotalPoints.toLocaleString('fr-FR')} points à {result.agircPointValue.toLocaleString('fr-FR')} €.
+                            {result.agircTotalPoints.toLocaleString('fr-FR')} points à {agircPointValue} €.
                             {result.agircAbattementCoeff < 1 && ` Coefficient de minoration · ${result.agircAbattementCoeff.toLocaleString('fr-FR')}.`}
                           </p>
                           {result.agircChildBonusBands.length > 0 && (

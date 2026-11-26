@@ -199,6 +199,7 @@ export const App: React.FC = () => {
             profile={profile}
             onChangeProfile={handleUpdateProfile}
             longCareer={calculationResult.longCareer}
+            micoScale={calculationResult.pensionScales.mico}
           />
         )}
 

@@ -369,13 +369,13 @@ describe('Campagne de recette 2025', () => {
     const res = calculateRetirement(profile, []);
     expect(res.eligibilityStatus).toBe('eligible_taux_plein');
     expect(res.micoApplied).toBe(true);
-    expect(res.micoComplementMonthly).toBeCloseTo(393.65, 2);
-    expect(res.basePensionMonthlyGross).toBeCloseTo(893.65, 2);
+    expect(res.micoComplementMonthly).toBeCloseTo(393.39, 2);
+    expect(res.basePensionMonthlyGross).toBeCloseTo(893.39, 2);
     expect(res.agircMonthlyGross).toBeCloseTo(119.88, 2);
-    expect(res.totalMonthlyGross).toBeCloseTo(1013.53, 2);
+    expect(res.totalMonthlyGross).toBeCloseTo(1013.27, 2);
   });
 
-  it('T16b : MICO non appliqué si toutes les pensions ne sont pas liquidées, et écrêté au plafond 1 394,86 €', () => {
+  it('T16b : MICO non appliqué si toutes les pensions ne sont pas liquidées, et écrêté au plafond 1 394,44 €', () => {
     const profileNotLiquidated = makeExpressProfile({
       birthYear: 1962,
       departureDate: '2025-07-01',
@@ -397,10 +397,10 @@ describe('Campagne de recette 2025', () => {
       allPensionsLiquidated: true,
       otherPensionsMonthly: 500,
     });
-    // 500 (base) + 119.88 (Agirc) + 500 (autres) = 1119.88 -> max MICO = 1394.86 - 1119.88 = 274.98
+    // Circulaire CNAV 2025/08 : 1 394,44 - (500 + 119,88 + 500) = 274,56 €.
     const resCapped = calculateRetirement(profileCapped, []);
     expect(resCapped.micoApplied).toBe(true);
-    expect(resCapped.micoComplementMonthly).toBeCloseTo(274.98, 2);
-    expect(resCapped.basePensionMonthlyGross).toBeCloseTo(774.98, 2);
+    expect(resCapped.micoComplementMonthly).toBeCloseTo(274.56, 2);
+    expect(resCapped.basePensionMonthlyGross).toBeCloseTo(774.56, 2);
   });
 });

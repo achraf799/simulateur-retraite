@@ -1,8 +1,52 @@
 import { describe, it, expect } from 'vitest';
 import { calculateRetirement } from './retirementCalculator';
-import { SAKURA_PROFILE, SAKURA_CAREER, LFSS_2026_PROFILE, LFSS_2026_CAREER } from '../constants/scenarios';
+import { BLANK_PROFILE, SAKURA_PROFILE, SAKURA_CAREER, LFSS_2026_PROFILE, LFSS_2026_CAREER } from '../constants/scenarios';
 import { UserProfile, CareerYear } from '../types/retirement';
 import { REPERES_2026 } from '../constants/parameters2026';
+
+describe('Barèmes à la date de départ', () => {
+  const profile: UserProfile = {
+    ...BLANK_PROFILE,
+    birthDate: '1960-01-01',
+    expressData: { totalQuarters: 167, contributedQuarters: 167, estimatedSam: 12000, agircPoints: 1000 },
+  };
+
+  it.each([
+    ['2024-10-01', 1.4159, 4129.71, 194.18],
+    ['2026-10-01', 1.4386, 4195.92, 197.29],
+    ['2026-11-01', 1.4587, 4254.54, 200.05],
+  ])('valorise les points et plafonne la majoration Agirc-Arrco au %s', (date, point, pension, bonus) => {
+    const result = calculateRetirement({
+      ...profile,
+      childrenCount: 3,
+      desiredDepartureDate: date,
+      expressData: { ...profile.expressData!, agircPoints: 35000 },
+    }, []);
+    expect(result.agircPointValue).toBe(point);
+    expect(result.agircMonthlyGrossBeforeBonus).toBe(pension);
+    expect(result.agircChildBonusCapped).toBe(true);
+    expect(result.agircChildBonusMonthly).toBe(bonus);
+  });
+
+  it('revalorise le MICO de base et majoré au 1er janvier 2026', () => {
+    const departing = { ...profile, desiredDepartureDate: '2026-01-01' };
+    expect(calculateRetirement(departing, []).basePensionMonthlyGross).toBe(903.93);
+    const withFewerContributedQuarters = { ...profile.expressData!, contributedQuarters: 119 };
+    expect(calculateRetirement({ ...departing, expressData: withFewerContributedQuarters }, [])
+      .basePensionMonthlyGross).toBe(756.29);
+  });
+
+  it.each([
+    ['2024-10-01', 1367.51],
+    ['2024-11-01', 1394.44],
+    ['2026-05-01', 1410.89],
+    ['2026-06-01', 1444.89],
+  ])('écrête le MICO au plafond de pensions applicable au %s', (date, cap) => {
+    const result = calculateRetirement({ ...profile, desiredDepartureDate: date, otherPensionsMonthly: 500 }, []);
+    expect(result.micoApplied).toBe(true);
+    expect(result.totalMonthlyGross + 500).toBeCloseTo(cap, 2);
+  });
+});
 
 describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', () => {
   describe('1. Validation exacte du Cas Sakura (Cas Référence Jury)', () => {

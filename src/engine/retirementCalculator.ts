@@ -6,6 +6,7 @@ import { calculateAgircChildBonusBands, selectAgircRights } from './agircArrco';
 import { analyzeLongCareer, firstPensionDate, summarizeCareerQuarters } from './longCareer';
 import { addMonths, validDate } from '../utils/civilDates';
 import { REPERES_2026, GENERATION_SCALES } from '../constants/parameters2026';
+import { getPensionScales } from '../constants/pensionScales';
 
 /**
  * MOTEUR DE CALCUL DE RETRAITE OBLIGATOIRE (CNAV/LURA + AGIRC-ARRCO) & CUMUL EMPLOI-RETRAITE
@@ -162,7 +163,8 @@ export function calculateRetirement(
   const proratisation = Math.min(1.0, totalValidatedQuarters / requiredQuarters);
 
   // 7. Retraite complémentaire Agirc-Arrco (calculée avant le MICO pour vérifier le plafond total)
-  const agircPointValue = REPERES_2026.valeurPointAgircArrco;
+  const pensionScales = getPensionScales(profile.desiredDepartureDate);
+  const agircPointValue = pensionScales.agircArrco.pointValue;
   let agircMonthlyGrossBeforeBonus = 0;
   let agircChildBonusMonthly = 0;
   let agircChildBonusCapped = false;
@@ -185,7 +187,7 @@ export function calculateRetirement(
     // La majoration pour enfants nés ou élevés est calculée sur les droits avant minoration.
     const bonusPoints = agircChildBonusBands.reduce((sum, band) => sum + band.points * band.rate, 0);
     const rawBonusAnnual = bonusPoints * agircPointValue;
-    const bonusCap = REPERES_2026.plafondMajorationEnfantsAgircAnnuel;
+    const bonusCap = pensionScales.agircArrco.annualChildBonusCap;
     const agircChildBonusAnnual = profile.birthDate < '1951-08-02' ? rawBonusAnnual : Math.min(rawBonusAnnual, bonusCap);
     agircChildBonusCapped = agircChildBonusAnnual < rawBonusAnnual;
     agircChildBonusMonthly = Number((agircChildBonusAnnual / 12).toFixed(2));
@@ -204,6 +206,7 @@ export function calculateRetirement(
   // 8. Retraite de base (Assurance Retraite / LURA) + Minimum Contributif (MICO)
   let basePensionMonthlyGrossBeforeMico = 0;
   let micoApplied = false;
+  let micoProjected = false;
   let micoComplementMonthly = 0;
   let basePensionMonthlyGrossBeforeBonus = 0;
   let baseChildBonusMonthly = 0;
@@ -222,21 +225,21 @@ export function calculateRetirement(
     // Minimum contributif (MICO) : taux plein requis + liquidation de toutes les pensions (Art. L. 351-10 CSS)
     const allPensionsLiquidated = profile.allPensionsLiquidated !== false;
     if (eligibilityStatus === 'eligible_taux_plein' && allPensionsLiquidated && !agircCareer.pending) {
-      const micoBaseProrated =
-        REPERES_2026.micoBaseMensuel2025 * Math.min(1, totalValidatedQuarters / requiredQuarters);
+      const { baseMonthly, increasedMonthly, monthlyPensionsCap } = pensionScales.mico;
+      const micoBaseProrated = baseMonthly * proratisation;
       const hasMicoMajoration = totalContributedQuarters >= REPERES_2026.micoSeuilTrimestresCotises;
-      const micoMajorationDiff =
-        REPERES_2026.micoMajoreMensuel2025 - REPERES_2026.micoBaseMensuel2025;
+      const micoMajorationDiff = increasedMonthly - baseMonthly;
       const micoMajorationProrated = hasMicoMajoration
         ? micoMajorationDiff * Math.min(1, totalContributedQuarters / requiredQuarters)
         : 0;
       const micoTargetMonthly = Number((micoBaseProrated + micoMajorationProrated).toFixed(2));
 
       if (basePensionMonthlyGrossBeforeMico < micoTargetMonthly) {
+        micoProjected = pensionScales.mico.projected;
         const rawComplement = Number((micoTargetMonthly - basePensionMonthlyGrossBeforeMico).toFixed(2));
         const otherPensions = Math.max(0, profile.otherPensionsMonthly || 0);
         const totalWithRawMico = basePensionMonthlyGrossBeforeMico + rawComplement + agircMonthlyGross + otherPensions;
-        const ecretement = Math.max(0, totalWithRawMico - REPERES_2026.micoPlafondPensionsMensuel2025);
+        const ecretement = Math.max(0, totalWithRawMico - monthlyPensionsCap);
         micoComplementMonthly = Number(Math.max(0, rawComplement - ecretement).toFixed(2));
         micoApplied = micoComplementMonthly > 0;
       }
@@ -316,8 +319,10 @@ export function calculateRetirement(
     surcoteRate,
     surcote,
     proratisation,
+    pensionScales,
     basePensionMonthlyGrossBeforeMico,
     micoApplied,
+    micoProjected,
     micoComplementMonthly,
     basePensionMonthlyGrossBeforeBonus,
     baseChildBonusMonthly,

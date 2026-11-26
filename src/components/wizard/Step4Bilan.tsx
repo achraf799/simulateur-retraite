@@ -190,7 +190,7 @@ export const Step4Bilan: React.FC<Step4BilanProps> = ({
                 Retraite Complémentaire (Agirc-Arrco)
                 <SimpleTooltip
                   term="Agirc-Arrco"
-                  explanation="Points × Valeur du point (1,4386 €) × Majoration enfants."
+                  explanation="Points × Valeur du point à la date de départ. La minoration et la majoration enfants éventuelles sont calculées selon vos droits."
                 />
               </span>
               <span className="text-xs font-bold text-slate-900">
@@ -302,7 +302,7 @@ export const Step4Bilan: React.FC<Step4BilanProps> = ({
               <div>
                 <strong className="block text-slate-900 mb-1">Formule Agirc-Arrco :</strong>
                 <code className="text-[11px] bg-white p-2 rounded border border-slate-200 block font-mono text-slate-800">
-                  {result.agircTotalPoints.toFixed(2)} pts × 1,4386 € × 1,10 / 12 = {result.agircMonthlyGross.toFixed(2)} €/m
+                  {result.agircTotalPoints.toLocaleString('fr-FR')} points à {result.agircPointValue.toLocaleString('fr-FR', { minimumFractionDigits: 4 })} € donnent une pension de {result.agircMonthlyGross.toLocaleString('fr-FR')} € brut par mois après les ajustements applicables.
                 </code>
               </div>
             </div>

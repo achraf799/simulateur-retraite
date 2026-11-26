@@ -17,11 +17,6 @@ export const REPERES_2026 = {
   salaireValidationTrimestre2026: 1803, // 150 x SMIC horaire
   salaireValidation4Trimestres2026: 7212, // 600 x SMIC horaire
 
-  // Agirc-Arrco
-  valeurPointAgircArrco: 1.4386, // au 01/11/2024
-  plafondMajorationEnfantsAgircAnnuel: 2367.48, // Plafond +10% enfants Agirc-Arrco
-  plafondMajorationEnfantsAgircMensuel: 197.29, // 2367.48 / 12
-
   // Nouveaux droits CER Intégral
   plafondNouveauxDroitsCerPassRatio: 0.05, // 5% du PASS
   plafondNouveauxDroitsCerAnnuel: 2403, // 0.05 * 48060 €
@@ -35,10 +30,7 @@ export const REPERES_2026 = {
   // Âge d'annulation de la décote (taux plein automatique)
   ageTauxPleinAutomatiqueAnnees: 67,
 
-  // Minimum contributif (MICO) 2025 (Circulaire CNAV 2024/40 du 23/12/2024)
-  micoBaseMensuel2025: 747.57,
-  micoMajoreMensuel2025: 893.65,
-  micoPlafondPensionsMensuel2025: 1394.86,
+  // Minimum contributif majoré
   micoSeuilTrimestresCotises: 120,
 };
 

@@ -1,3 +1,5 @@
+import type { getPensionScales } from '../constants/pensionScales';
+
 export type Currency = 'EUR' | 'FRF';
 
 export type Regime = 'CNAV' | 'MSA';
@@ -210,9 +212,11 @@ export interface CalculationResult {
   surcoteRate: number;
   surcote: SurcoteAnalysis;
   proratisation: number; // MIN(validatedQuarters, requiredQuarters) / requiredQuarters
+  pensionScales: ReturnType<typeof getPensionScales>;
   // Retraite de base
   basePensionMonthlyGrossBeforeMico: number;
   micoApplied: boolean;
+  micoProjected: boolean;
   micoComplementMonthly: number;
   basePensionMonthlyGrossBeforeBonus: number;
   baseChildBonusMonthly: number;

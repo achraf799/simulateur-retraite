@@ -1,5 +1,6 @@
 import React from 'react';
-import { UserProfile, SpecialCircumstances, LongCareerResult } from '../../types/retirement';
+import { CalculationResult, UserProfile, SpecialCircumstances, LongCareerResult } from '../../types/retirement';
+import { REPERES_2026 } from '../../constants/parameters2026';
 import { LongCareerSummary } from '../common/LongCareerSummary';
 import { EARLY_CAREER_AGES } from '../../engine/longCareer';
 import { FormulaTooltip } from '../common/FormulaTooltip';
@@ -17,13 +18,17 @@ interface Step3SpecialCasesProps {
   profile: UserProfile;
   onChangeProfile: (updated: Partial<UserProfile>) => void;
   longCareer: LongCareerResult;
+  micoScale: CalculationResult['pensionScales']['mico'];
 }
 
 export const Step3SpecialCases: React.FC<Step3SpecialCasesProps> = ({
   profile,
   onChangeProfile,
   longCareer,
+  micoScale,
 }) => {
+  const formatEuros = (amount: number) =>
+    amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
   const sc: SpecialCircumstances = profile.specialCircumstances || {
     earlyCareer: false,
     earlyQuartersCount: 0,
@@ -469,10 +474,14 @@ export const Step3SpecialCases: React.FC<Step3SpecialCasesProps> = ({
                 Liquidation de toutes les pensions (Minimum contributif — MICO)
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
-                Le minimum contributif (747,57 €/mois, ou 893,65 €/mois majoré dès 120 trimestres cotisés en 2025)
-                s’applique à taux plein uniquement si toutes vos pensions personnelles sont liquidées et sous le
-                plafond mensuel de 1 394,86 €.
+                Le minimum contributif s’applique à taux plein si toutes vos pensions personnelles sont liquidées.
+                Le barème retenu prévoit {formatEuros(micoScale.baseMonthly)} par mois, ou jusqu’à{' '}
+                {formatEuros(micoScale.increasedMonthly)} à partir de {REPERES_2026.micoSeuilTrimestresCotises} trimestres cotisés.
+                Le complément est limité par un plafond de {formatEuros(micoScale.monthlyPensionsCap)} par mois, toutes pensions confondues.
               </p>
+              {micoScale.projected && (
+                <p className="text-xs text-amber-900">Projection du minimum contributif selon le barème connu.</p>
+              )}
             </div>
             <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-800 shrink-0 cursor-pointer">
               <input
