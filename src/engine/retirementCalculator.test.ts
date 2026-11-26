@@ -187,16 +187,15 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
       expect(res.liquidationRate).toBe(0.45);
     });
 
-    it('doit appliquer une surcote de +1,25% par trimestre après âge légal et taux plein', () => {
+    it('contrôle la surcote selon les années cotisées, puis utilise les trimestres confirmés', () => {
       const profileSurcote: UserProfile = {
         ...SAKURA_PROFILE,
         birthDate: '1960-01-01', // Âge légal 62 ans (167 trimestres requis)
-        desiredDepartureDate: '2023-01-01', // 63 ans (4 trimestres après âge légal)
+        desiredDepartureDate: '2023-01-01', // 3 trimestres possibles après le trimestre de l’âge légal.
         childrenCount: 0,
       };
-      // Carrière avec 171 trimestres cotisés (4 au-delà des 167 requis)
       const careerSurcote: CareerYear[] = [];
-      for (let y = 1980; y <= 2022; y++) {
+      for (let y = 1979; y <= 2022; y++) {
         careerSurcote.push({
           year: y,
           currency: 'EUR',
@@ -214,11 +213,17 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
         });
       }
 
-      const res = calculateRetirement(profileSurcote, careerSurcote);
-      expect(res.eligibilityStatus).toBe('eligible_taux_plein');
-      expect(res.surcoteQuarters).toBe(4);
-      // Surcote : 4 * 1.25% = +5.0%
-      expect(res.surcoteRate).toBe(0.05);
+      const inactive = calculateRetirement(profileSurcote, careerSurcote.filter(({ year }) => year < 2022));
+      expect(inactive.eligibilityStatus).toBe('eligible_taux_plein');
+      expect(inactive.surcoteQuarters).toBe(0);
+      expect(inactive.surcote.status).toBe('none');
+
+      const pending = calculateRetirement(profileSurcote, careerSurcote);
+      expect(pending.surcote).toMatchObject({ status: 'pending', maxQuarters: 3 });
+      expect(pending.surcoteQuarters).toBe(0);
+      const confirmed = { ...profileSurcote, surcoteConfirmed: { departureDate: '2023-01-01', quarters: 2 } };
+      expect(calculateRetirement(confirmed, careerSurcote).surcoteRate).toBe(0.025);
+      expect(calculateRetirement({ ...confirmed, desiredDepartureDate: '2023-02-01' }, careerSurcote).surcote.status).toBe('pending');
     });
   });
 
@@ -228,6 +233,7 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
         ...SAKURA_PROFILE,
         birthDate: '1960-01-01', // 65 ans au 01/01/2025 (>= 62 ans légal)
         desiredDepartureDate: '2025-01-01',
+        surcoteConfirmed: { departureDate: '2025-01-01', quarters: 0 },
         cerEnabled: true,
         cerResumptionDate: '2025-08-01', // > 6 mois
         cerFormerEmployer: false,

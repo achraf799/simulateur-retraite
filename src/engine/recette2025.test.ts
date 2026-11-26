@@ -89,20 +89,40 @@ describe('Campagne de recette 2025', () => {
     expect(res.totalMonthlyGross).toBeCloseTo(1767.20, 2);
   });
 
-  it('T05 : Surcote de 4 trimestres (1962, départ 07/2025, 173/169, SAM 40000, 7000 pts)', () => {
+  it('T05 : retient 3 trimestres civils confirmés après le trimestre où l’âge légal est atteint', () => {
     const profile = makeExpressProfile({
       birthYear: 1962,
       departureDate: '2025-07-01',
       totalQuarters: 173,
       sam: 40000,
       points: 7000,
+      surcoteConfirmed: { departureDate: '2025-07-01', quarters: 3 },
     });
     const res = calculateRetirement(profile, []);
     expect(res.eligibilityStatus).toBe('eligible_taux_plein');
-    expect(res.surcoteQuarters).toBe(4);
-    expect(res.basePensionMonthlyGross).toBeCloseTo(1750.00, 2);
+    expect(res.surcoteQuarters).toBe(3);
+    expect(res.surcote.maxQuarters).toBe(3);
+    expect(res.basePensionMonthlyGross).toBeCloseTo(1729.17, 2);
     expect(res.agircMonthlyGross).toBeCloseTo(839.18, 2);
-    expect(res.totalMonthlyGross).toBeCloseTo(2589.18, 2);
+    expect(res.totalMonthlyGross).toBeCloseTo(2568.35, 2);
+  });
+
+  it('en Express, attend la confirmation des trimestres et écarte une quantité au-delà de la période', () => {
+    const profile = makeExpressProfile({
+      birthYear: 1962, departureDate: '2025-07-01', totalQuarters: 173, sam: 40000, points: 7000,
+      cerEnabled: true, cerResumptionDate: '2025-08-01', cerAllPensionsLiquidated: true,
+    });
+    const pending = calculateRetirement(profile, []);
+    expect(pending.surcote).toMatchObject({ status: 'pending', maxQuarters: 3 });
+    expect(pending.surcoteQuarters).toBe(0);
+    expect(pending.cerAnalysis.unavailable).toBe(true);
+    expect(pending.cerAnalysis.alertMessage).toContain('trimestres de surcote');
+    const excessive = calculateRetirement({
+      ...profile, surcoteConfirmed: { departureDate: '2025-07-01', quarters: 4 },
+    }, []);
+    expect(excessive.surcote).toMatchObject({ status: 'pending', maxQuarters: 3 });
+    expect(excessive.surcote.inputError).toBeTruthy();
+    expect(excessive.surcoteQuarters).toBe(0);
   });
 
   it('T09 : Plafond majoration enfants Agirc-Arrco (1962, 07/2025, 169/169, SAM 45000, 35000 pts, 3 enfants)', () => {

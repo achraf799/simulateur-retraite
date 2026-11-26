@@ -71,6 +71,11 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
   const formatPercent = (rate: number) =>
     rate.toLocaleString('fr-FR', { style: 'percent', maximumFractionDigits: 2 });
   const replacementRate = formatPercent(result.grossReplacementRate / 100);
+  const surcoteNote = result.surcote.status === 'pending'
+    ? 'Estimation hors surcote. Confirmez les trimestres dans « Départ & CER ».'
+    : result.surcoteQuarters > 0
+      ? `Surcote de ${formatPercent(result.surcoteRate)} sur la retraite de base pour ${result.surcoteQuarters} trimestres confirmés.`
+      : undefined;
   const pensionStatus = result.longCareer.inputError ? 'Durée à corriger' : result.eligibilityStatus === 'eligible_taux_plein'
     ? `${result.isCarriereLongue ? 'Carrière longue à taux plein' : 'Taux plein'} (${formatPercent(result.liquidationRate)})`
     : result.eligibilityStatus === 'eligible_decote' ? `Départ avec décote (${result.decoteQuarters} trim.)` : 'Inéligible au départ';
@@ -198,6 +203,9 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                     })}{' '}
                     € net estimé avant impôt sur le revenu
                   </div>
+                  {result.surcote.status === 'pending' && (
+                    <p role="status" className="mt-2 text-xs font-semibold text-amber-800">{surcoteNote}</p>
+                  )}
                 </div>
 
                 {profile.lastGrossMonthlySalary > 0 && (
@@ -256,6 +264,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                       Base avant MICO : {formatEuros(result.basePensionMonthlyGrossBeforeMico)} • Complément MICO : +{formatEuros(result.micoComplementMonthly)}
                     </div>
                   )}
+                  {surcoteNote && <p className="mt-1 text-xs text-slate-600">{surcoteNote}</p>}
                   {pointsPending && result.eligibilityStatus === 'eligible_taux_plein' && (
                     <p className="mt-1 text-xs text-slate-600">Montant brut hors éventuel minimum contributif.</p>
                   )}
@@ -517,6 +526,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                         <dd>
                           <strong>{formatEuros(result.basePensionMonthlyGross)} brut</strong> · {formatEuros(result.basePensionMonthlyNet)} net estimé.
                           <p className="mt-1 text-xs">Taux de liquidation · {formatPercent(result.liquidationRate)}. Proratisation · {formatPercent(result.proratisation)}.</p>
+                          {surcoteNote && <p className="text-xs">{surcoteNote}</p>}
                           {pointsPending && result.eligibilityStatus === 'eligible_taux_plein' && (
                             <p className="text-xs">Montant brut hors éventuel minimum contributif.</p>
                           )}

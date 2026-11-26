@@ -1,6 +1,7 @@
 import { CareerYear, UserProfile, CalculationResult } from '../types/retirement';
 import { calculateAnnualSalary } from './annualSalary';
 import { analyzeCer } from './cerCalculator';
+import { analyzeSurcote } from './surcote';
 import { calculateAgircChildBonusBands, selectAgircRights } from './agircArrco';
 import { analyzeLongCareer, firstPensionDate, summarizeCareerQuarters } from './longCareer';
 import { addMonths, validDate } from '../utils/civilDates';
@@ -128,20 +129,12 @@ export function calculateRetirement(
   // 6. Liquidation, décote, surcote et coefficient d'abattement Agirc-Arrco
   let liquidationRate = 0.50; // Taux plein
   let decoteQuarters = 0;
-  let surcoteQuarters = 0;
-  let surcoteRate = 0;
+  const surcote = analyzeSurcote(profile, legalAgeTotalMonths, requiredQuarters, quarters, eligibilityStatus === 'eligible_taux_plein');
+  const surcoteQuarters = surcote.quarters;
+  const surcoteRate = surcoteQuarters * 0.0125;
   let agircAbattementCoeff = 1;
 
-  if (eligibilityStatus === 'eligible_taux_plein') {
-    liquidationRate = 0.50;
-    // Surcote : trimestres travaillés APRÈS l'âge légal ET au-delà des trimestres requis (Art. L. 351-1-2 CSS)
-    if (ageTotalMonths > legalAgeTotalMonths && totalValidatedQuarters > requiredQuarters) {
-      const quartersOverAge = Math.floor((ageTotalMonths - legalAgeTotalMonths) / 3);
-      const quartersOverRequired = totalValidatedQuarters - requiredQuarters;
-      surcoteQuarters = Math.min(quartersOverAge, quartersOverRequired);
-      surcoteRate = surcoteQuarters * 0.0125; // +1.25% par trimestre supplémentaire
-    }
-  } else if (eligibilityStatus === 'eligible_decote') {
+  if (eligibilityStatus === 'eligible_decote') {
     // Décote : min des trimestres manquants pour atteindre le taux plein en durée ou l'âge d'annulation (67 ans)
     const missingQuartersDuration = Math.max(0, requiredQuarters - totalValidatedQuarters);
     const missingQuartersAge = Math.max(
@@ -159,7 +152,7 @@ export function calculateRetirement(
         ? computeAgircAbattementCoeff(missingQuartersDuration)
         : coeffAge;
     agircAbattementCoeff = Math.max(coeffDuration, coeffAge);
-  } else {
+  } else if (eligibilityStatus === 'ineligible') {
     // Départ refusé : aucune pension liquidable à la date demandée
     liquidationRate = 0;
     agircAbattementCoeff = 0;
@@ -287,7 +280,9 @@ export function calculateRetirement(
     samAnalysis.source !== 'unavailable',
     basePensionMonthlyGross,
     agircMonthlyGross,
-    longCareer.inputError ?? (agircCareer.pending ? 'Confirmez les points Agirc-Arrco acquis avant la date de départ pour chiffrer le cumul.' : undefined),
+    longCareer.inputError
+      ?? (agircCareer.pending ? 'Confirmez les points Agirc-Arrco acquis avant la date de départ pour chiffrer le cumul.' : undefined)
+      ?? (surcote.status === 'pending' ? 'Confirmez les trimestres de surcote dans « Départ & CER » pour chiffrer le cumul.' : undefined),
   );
 
   return {
@@ -319,6 +314,7 @@ export function calculateRetirement(
     decoteQuarters,
     surcoteQuarters,
     surcoteRate,
+    surcote,
     proratisation,
     basePensionMonthlyGrossBeforeMico,
     micoApplied,

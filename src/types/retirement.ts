@@ -104,6 +104,14 @@ export interface UserProfile {
   specialCircumstances?: SpecialCircumstances;
   allPensionsLiquidated?: boolean; // Toutes les pensions personnelles liquidées (condition MICO)
   otherPensionsMonthly?: number; // Autres pensions personnelles mensuelles brutes (plafond MICO)
+  surcoteConfirmed?: { departureDate: string; quarters: number };
+}
+
+export interface SurcoteAnalysis {
+  status: 'none' | 'pending' | 'confirmed';
+  maxQuarters: number;
+  quarters: number;
+  inputError?: string;
 }
 
 export type CerReductionBand = 'beforeLegalAge' | 'beforeFullRateAge';
@@ -200,6 +208,7 @@ export interface CalculationResult {
   decoteQuarters: number;
   surcoteQuarters: number;
   surcoteRate: number;
+  surcote: SurcoteAnalysis;
   proratisation: number; // MIN(validatedQuarters, requiredQuarters) / requiredQuarters
   // Retraite de base
   basePensionMonthlyGrossBeforeMico: number;

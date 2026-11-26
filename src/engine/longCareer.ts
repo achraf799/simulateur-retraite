@@ -57,6 +57,7 @@ export function summarizeCareerQuarters(career: CareerYear[], birthYear: number,
   let contributed = 0;
   let validatedTotal = 0;
   const validatedByYear = new Map<number, number>();
+  const contributedByYear = new Map<number, number>();
   for (const [year, regimes] of rowsByYear) {
     let validated = 0;
     let paid = 0;
@@ -69,9 +70,11 @@ export function summarizeCareerQuarters(career: CareerYear[], birthYear: number,
     const retained = Math.min(limit, validated);
     validatedByYear.set(year, retained);
     validatedTotal += retained;
-    contributed += Math.min(limit, paid);
+    const paidRetained = Math.min(limit, paid);
+    contributedByYear.set(year, paidRetained);
+    contributed += paidRetained;
   }
-  return { validated: validatedTotal, contributed, validatedByYear };
+  return { validated: validatedTotal, contributed, validatedByYear, contributedByYear };
 }
 
 export function analyzeLongCareer(

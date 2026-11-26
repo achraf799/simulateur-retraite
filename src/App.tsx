@@ -18,6 +18,19 @@ import { Step4DepartureAndCer } from './components/wizard/Step4DepartureAndCer';
 import { Step5Bilan } from './components/wizard/Step5Bilan';
 import { exportCareerToCsv, importCareerFromCsv } from './utils/csvHelper';
 
+function careerQuartersChanged(career: CareerYear[], updated: CareerYear[], departure: string): boolean {
+  const [year, month] = departure.split('-').map(Number);
+  const canContribute = (row: CareerYear) => row.year < year || (row.year === year && month >= 4);
+  const recorded = career.filter(canContribute);
+  const nextRecorded = updated.filter(canContribute);
+  return recorded.length !== nextRecorded.length || recorded.some((row, index) => {
+    const next = nextRecorded[index];
+    return row.year !== next.year || row.regime !== next.regime
+      || row.validatedQuarters !== next.validatedQuarters
+      || row.contributedQuarters !== next.contributedQuarters || row.eventType !== next.eventType;
+  });
+}
+
 export const App: React.FC = () => {
   // ─── State ─────────────────────────────────────────────────────────────
   const [profile, setProfile] = useState<UserProfile>(SAKURA_PROFILE);
@@ -58,6 +71,11 @@ export const App: React.FC = () => {
         && updated.cerFirstBasePensionDate !== prev.cerFirstBasePensionDate;
       const next = { ...prev, ...updated };
 
+      if (birthChanged || departureChanged || next.careerMode !== prev.careerMode
+        || next.expressData?.totalQuarters !== prev.expressData?.totalQuarters
+        || next.expressData?.contributedQuarters !== prev.expressData?.contributedQuarters) {
+        next.surcoteConfirmed = undefined;
+      }
       if (next.cerNewGrossMonthlySalary !== prev.cerNewGrossMonthlySalary) next.cerNewMonthlyIncomeSubjectToCsg = undefined;
       if (birthChanged || departureChanged || firstPensionChanged) next.cerIncomeByPeriod = undefined;
       if ((birthChanged || departureChanged) && next.specialCircumstances) {
@@ -76,20 +94,11 @@ export const App: React.FC = () => {
   const handleUpdateCareer = (updated: CareerYear[]) => {
     const special = profile.specialCircumstances;
     const estimate = special?.longCareerEstimate;
-    if (special && estimate) {
-      const [year, month] = estimate.departureDate.split('-').map(Number);
-      const canContribute = (row: CareerYear) => row.year < year || (row.year === year && month >= 4);
-      const recorded = career.filter(canContribute);
-      const nextRecorded = updated.filter(canContribute);
-      const quartersChanged = recorded.length !== nextRecorded.length || recorded.some((row, index) => {
-        const next = nextRecorded[index];
-        return row.year !== next.year || row.regime !== next.regime
-          || row.validatedQuarters !== next.validatedQuarters
-          || row.contributedQuarters !== next.contributedQuarters || row.eventType !== next.eventType;
-      });
-      if (quartersChanged) {
-        handleUpdateProfile({ specialCircumstances: { ...special, longCareerEstimate: undefined } });
-      }
+    if (special && estimate && careerQuartersChanged(career, updated, estimate.departureDate)) {
+      handleUpdateProfile({ specialCircumstances: { ...special, longCareerEstimate: undefined } });
+    }
+    if (profile.surcoteConfirmed && careerQuartersChanged(career, updated, profile.surcoteConfirmed.departureDate)) {
+      handleUpdateProfile({ surcoteConfirmed: undefined });
     }
     setCareer(updated);
     setCurrentScenario('custom');

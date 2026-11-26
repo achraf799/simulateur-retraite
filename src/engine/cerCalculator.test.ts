@@ -79,6 +79,7 @@ describe('Cumul emploi-retraite', () => {
   it.each([undefined, false, true])('conditionne le cumul intégral à la liquidation exigible (%s)', (liquidated) => {
     const cer = simulateCer({
       birthDate: '1959-01-01',
+      surcoteConfirmed: { departureDate: '2027-01-01', quarters: 0 },
       cerResumptionDate: '2027-03-01',
       cerAllPensionsLiquidated: liquidated,
     });
@@ -91,6 +92,7 @@ describe('Cumul emploi-retraite', () => {
   it('clôt le palier précédent le mois des 67 ans', () => {
     const cer = simulateCer({
       birthDate: '1960-06-15',
+      surcoteConfirmed: { departureDate: '2027-01-01', quarters: 0 },
       cerIncomeByPeriod: { beforeFullRateAge: 10000 },
     });
     expect(cer.periods?.[0]?.endDate).toBe('2027-06-30');
