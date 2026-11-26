@@ -21,6 +21,7 @@ export interface CareerYear {
   validatedQuarters: number; // 0 to 4
   contributedQuarters: number; // 0 to 4 (cotisés ou réputés cotisés pour carrière longue)
   agircPoints: number;
+  agircPointsAtDeparture?: { date: string; points: number };
   agircLegacyRegime?: AgircLegacyRegime;
   eventType: EventType;
   samIncomeKind?: SamIncomeKind;
@@ -37,6 +38,7 @@ export interface LongCareerResult {
   minimumAgeMonths?: number;
   earliestAgeDate?: string;
   contributedQuarters?: number;
+  inputError?: string;
   possibleContributedQuarters?: number;
   requiredQuarters?: number;
   safeguardToVerify?: boolean;
@@ -210,6 +212,7 @@ export interface CalculationResult {
   basePensionMonthlyNet: number;
   // Agirc-Arrco
   agircTotalPoints: number;
+  agircPointsPending: boolean;
   agircPointValue: number;
   agircAbattementCoeff: number;
   agircMonthlyGrossBeforeBonus: number;

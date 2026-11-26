@@ -54,6 +54,36 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
       expect(result.agircMonthlyNet).toBe(1087.86);
     });
 
+    it('exclut les points des années à compter d’un départ au premier janvier', () => {
+      const lastYear = SAKURA_CAREER[SAKURA_CAREER.length - 1];
+      const future = [2025, 2026].map((year) => ({ ...lastYear, year, agircPoints: 1000 }));
+      const departure = calculateRetirement(SAKURA_PROFILE, [...SAKURA_CAREER, ...future]);
+      expect(departure.agircTotalPoints).toBe(9274.16);
+      expect(departure.agircMonthlyGross).toBe(1209);
+    });
+
+    it('retient uniquement les points de l’année de départ confirmés pour la date simulée', () => {
+      const profile: UserProfile = {
+        ...SAKURA_PROFILE,
+        desiredDepartureDate: '2025-07-01',
+        cerResumptionDate: '2025-08-01',
+        specialCircumstances: { ...SAKURA_PROFILE.specialCircumstances!, longCareerConfirmedQuarters: 171 },
+      };
+      const annual: CareerYear = { ...SAKURA_CAREER[SAKURA_CAREER.length - 1], year: 2025, agircPoints: 1000 };
+      const pending = calculateRetirement(profile, [...SAKURA_CAREER, annual]);
+      expect(pending.agircPointsPending).toBe(true);
+      expect(pending.agircTotalPoints).toBe(9274.16);
+      expect(pending.cerAnalysis.unavailable).toBe(true);
+
+      const confirmed: CareerYear = { ...annual, agircPointsAtDeparture: { date: '2025-07-01', points: 100 } };
+      const retirement = calculateRetirement(profile, [...SAKURA_CAREER, confirmed]);
+      expect(retirement.agircPointsPending).toBe(false);
+      expect(retirement.agircTotalPoints).toBe(9374.16);
+      expect(retirement.agircMonthlyGross).toBe(1222.18);
+      expect(calculateRetirement({ ...profile, desiredDepartureDate: '2025-08-01' }, [...SAKURA_CAREER, confirmed])
+        .agircPointsPending).toBe(true);
+    });
+
     it('calcule le total brut, le net et le taux de remplacement de Sakura', () => {
       expect(result.totalMonthlyGross).toBe(3084.06);
       expect(result.totalMonthlyNet).toBe(2792.29);
@@ -70,6 +100,23 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
       expect(cer.paidComplementaryMonthly).toBeUndefined();
       expect(cer.generatesNewRights).toBe(false);
     });
+  });
+
+  it.each([false, true])('bloque une durée Express incohérente fournie par confirmation manuelle (%s)', (manual) => {
+    const profile: UserProfile = {
+      ...SAKURA_PROFILE,
+      careerMode: 'express',
+      expressData: { totalQuarters: 100, contributedQuarters: manual ? 100 : 170, estimatedSam: 35000, agircPoints: 5000 },
+      specialCircumstances: {
+        ...SAKURA_PROFILE.specialCircumstances!,
+        longCareerConfirmedQuarters: manual ? 170 : undefined,
+      },
+    };
+    const result = calculateRetirement(profile, []);
+    expect(result.longCareer.status).toBe('unknown');
+    expect(result.longCareer.inputError).toBeTruthy();
+    expect(result.totalMonthlyGross).toBe(0);
+    expect(result.cerAnalysis.unavailable).toBe(true);
   });
 
   it('distingue les anciennes caisses connues, y compris pour des points acquis la même année', () => {

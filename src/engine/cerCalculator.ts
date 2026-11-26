@@ -39,6 +39,7 @@ export function analyzeCer(
   basePensionEstimated: boolean,
   baseMonthly: number,
   complementaryMonthly: number,
+  inputIssue?: string,
 ): CerAnalysisResult {
   const departure = profile.desiredDepartureDate;
   const firstPension = profile.cerFirstBasePensionDate || departure;
@@ -65,6 +66,8 @@ export function analyzeCer(
   const unavailable = (alertMessage: string): CerAnalysisResult => ({
     ...result, unavailable: true, alertLevel: 'YELLOW', alertMessage,
   });
+
+  if (inputIssue) return unavailable(inputIssue);
 
   if (![departure, firstPension, resumption, profile.birthDate].every(validDate)
     || resumption < departure || firstPension > departure) {

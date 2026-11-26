@@ -1,7 +1,7 @@
 import { CareerYear, UserProfile, CalculationResult } from '../types/retirement';
 import { calculateAnnualSalary } from './annualSalary';
 import { analyzeCer } from './cerCalculator';
-import { calculateAgircChildBonusBands } from './agircArrco';
+import { calculateAgircChildBonusBands, selectAgircRights } from './agircArrco';
 import { analyzeLongCareer, firstPensionDate, summarizeCareerQuarters } from './longCareer';
 import { addMonths, validDate } from '../utils/civilDates';
 import { REPERES_2026, GENERATION_SCALES } from '../constants/parameters2026';
@@ -94,7 +94,8 @@ export function calculateRetirement(
     : summarizeCareerQuarters(rawCareer, birthYear, profile.desiredDepartureDate);
   const totalValidatedQuarters = quarters.validated;
   const totalContributedQuarters = quarters.contributed;
-  const agircTotalPoints = expressData?.agircPoints ?? rawCareer.reduce((points, row) => points + row.agircPoints, 0);
+  const agircCareer = selectAgircRights(expressData ? [] : rawCareer, profile.desiredDepartureDate);
+  const agircTotalPoints = expressData?.agircPoints ?? agircCareer.rights.reduce((points, row) => points + row.agircPoints, 0);
 
   const longCareer = analyzeLongCareer(profile, rawCareer, legalAgeTotalMonths, requiredQuarters);
   const isCarriereLongue = longCareer.status === 'eligible';
@@ -107,7 +108,9 @@ export function calculateRetirement(
 
   // Statut d'éligibilité globale
   let eligibilityStatus: 'eligible_taux_plein' | 'eligible_decote' | 'ineligible';
-  if (isCarriereLongue || isAutomaticFullRateSpecial) {
+  if (longCareer.inputError) {
+    eligibilityStatus = 'ineligible';
+  } else if (isCarriereLongue || isAutomaticFullRateSpecial) {
     eligibilityStatus = 'eligible_taux_plein';
   } else if (reachesLegalAge) {
     if (totalValidatedQuarters >= requiredQuarters || ageYears >= REPERES_2026.ageTauxPleinAutomatiqueAnnees) {
@@ -175,7 +178,7 @@ export function calculateRetirement(
   let agircMonthlyNet = 0;
   const agircChildBonusBands = eligibilityStatus === 'ineligible' ? [] : calculateAgircChildBonusBands(
     profile.childrenCount,
-    rawCareer,
+    agircCareer.rights,
     expressData,
   );
 
@@ -225,7 +228,7 @@ export function calculateRetirement(
 
     // Minimum contributif (MICO) : taux plein requis + liquidation de toutes les pensions (Art. L. 351-10 CSS)
     const allPensionsLiquidated = profile.allPensionsLiquidated !== false;
-    if (eligibilityStatus === 'eligible_taux_plein' && allPensionsLiquidated) {
+    if (eligibilityStatus === 'eligible_taux_plein' && allPensionsLiquidated && !agircCareer.pending) {
       const micoBaseProrated =
         REPERES_2026.micoBaseMensuel2025 * Math.min(1, totalValidatedQuarters / requiredQuarters);
       const hasMicoMajoration = totalContributedQuarters >= REPERES_2026.micoSeuilTrimestresCotises;
@@ -283,7 +286,8 @@ export function calculateRetirement(
     eligibilityStatus !== 'ineligible',
     samAnalysis.source !== 'unavailable',
     basePensionMonthlyGross,
-    agircMonthlyGross
+    agircMonthlyGross,
+    longCareer.inputError ?? (agircCareer.pending ? 'Confirmez les points Agirc-Arrco acquis avant la date de départ pour chiffrer le cumul.' : undefined),
   );
 
   return {
@@ -325,6 +329,7 @@ export function calculateRetirement(
     basePensionAnnualGross,
     basePensionMonthlyNet,
     agircTotalPoints: Number(agircTotalPoints.toFixed(2)),
+    agircPointsPending: agircCareer.pending,
     agircPointValue,
     agircAbattementCoeff,
     agircMonthlyGrossBeforeBonus,

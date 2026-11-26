@@ -1,6 +1,7 @@
 import { CareerYear, Currency, EventType, Regime } from '../types/retirement';
 import { getPassForYear, FRF_TO_EUR_RATE } from '../constants/passHistory';
 import { getCnavCoeff } from '../constants/cnavCoefficients';
+import { validDate } from './civilDates';
 
 export function exportCareerToCsv(career: CareerYear[]): string {
   const headers = [
@@ -14,6 +15,8 @@ export function exportCareerToCsv(career: CareerYear[]): string {
     'TypeEvenement',
     'TraitementSAM',
     'RegimeAgircHistorique',
+    'DateArretPoints',
+    'PointsAgircAvantDepart',
   ];
 
   const rows = career.map((r) => [
@@ -27,6 +30,8 @@ export function exportCareerToCsv(career: CareerYear[]): string {
     r.eventType,
     r.samIncomeKind ?? '',
     r.agircLegacyRegime ?? '',
+    r.agircPointsAtDeparture?.date ?? '',
+    r.agircPointsAtDeparture?.points ?? '',
   ]);
 
   return [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
@@ -44,7 +49,10 @@ export function importCareerFromCsv(csvText: string, liquidationYear = 2025): Ca
   const trimValIdx = headers.findIndex((h) => h.includes('valide') || h.includes('trimestresvalides'));
   const trimCotIdx = headers.findIndex((h) => h.includes('cotise') || h.includes('trimestrescotises'));
   const agircLegacyIdx = headers.indexOf('regimeagirchistorique');
-  const pointsIdx = headers.findIndex((h, index) => index !== agircLegacyIdx && (h.includes('points') || h.includes('agirc')));
+  const pointsDateIdx = headers.indexOf('datearretpoints');
+  const partialPointsIdx = headers.indexOf('pointsagircavantdepart');
+  const pointsIdx = headers.findIndex((h, index) =>
+    index !== agircLegacyIdx && index !== pointsDateIdx && index !== partialPointsIdx && (h.includes('points') || h.includes('agirc')));
   const eventIdx = headers.findIndex((h) => h.includes('event') || h.includes('evenement'));
 
   const samIdx = headers.indexOf('traitementsam');
@@ -74,6 +82,8 @@ export function importCareerFromCsv(csvText: string, liquidationYear = 2025): Ca
 
     const samIncomeKind = cols[samIdx];
     const agircLegacyRegime = cols[agircLegacyIdx];
+    const pointsDate = cols[pointsDateIdx];
+    const partialPoints = cols[partialPointsIdx] ? Number(cols[partialPointsIdx]) : NaN;
     parsedRows.push({
       year,
       currency,
@@ -87,6 +97,8 @@ export function importCareerFromCsv(csvText: string, liquidationYear = 2025): Ca
       validatedQuarters,
       contributedQuarters,
       agircPoints,
+      ...(pointsDate && validDate(pointsDate) && Number.isFinite(partialPoints) && partialPoints >= 0
+        ? { agircPointsAtDeparture: { date: pointsDate, points: partialPoints } } : {}),
       eventType,
       ...(agircLegacyRegime === 'arrco' || agircLegacyRegime === 'agirc'
         || agircLegacyRegime === 'camarca' || agircLegacyRegime === 'noBonus' ? { agircLegacyRegime } : {}),

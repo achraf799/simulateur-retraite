@@ -1,8 +1,32 @@
 import type { AgircChildBonusBand, CareerYear, ExpressCareerData } from '../types/retirement';
+import { validDate } from '../utils/civilDates';
+
+type AgircRights = Pick<CareerYear, 'year' | 'agircPoints' | 'agircLegacyRegime'>;
+
+export function selectAgircRights(career: CareerYear[], departure: string) {
+  const rights: AgircRights[] = [];
+  let pending = false;
+  if (!validDate(departure)) return { rights, pending };
+
+  const yearOfDeparture = Number(departure.slice(0, 4));
+  for (const row of career) {
+    if (row.year < yearOfDeparture) {
+      rights.push(row);
+    } else if (row.year === yearOfDeparture && !departure.endsWith('-01-01')) {
+      const confirmed = row.agircPointsAtDeparture;
+      if (confirmed?.date === departure && Number.isFinite(confirmed.points) && confirmed.points >= 0) {
+        rights.push({ year: row.year, agircLegacyRegime: row.agircLegacyRegime, agircPoints: confirmed.points });
+      } else if (row.agircPoints !== 0) {
+        pending = true;
+      }
+    }
+  }
+  return { rights, pending };
+}
 
 export function calculateAgircChildBonusBands(
   children: number,
-  career: CareerYear[],
+  career: AgircRights[],
   express?: ExpressCareerData,
 ): AgircChildBonusBand[] {
   if (children < 3) return [];

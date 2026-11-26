@@ -74,14 +74,22 @@ export const App: React.FC = () => {
   };
 
   const handleUpdateCareer = (updated: CareerYear[]) => {
-    const quartersChanged = career.length !== updated.length || career.some((row, index) => {
-      const next = updated[index];
-      return row.year !== next.year || row.regime !== next.regime
-        || row.validatedQuarters !== next.validatedQuarters
-        || row.contributedQuarters !== next.contributedQuarters || row.eventType !== next.eventType;
-    });
-    if (quartersChanged && profile.specialCircumstances?.longCareerEstimate) {
-      handleUpdateProfile({ specialCircumstances: { ...profile.specialCircumstances, longCareerEstimate: undefined } });
+    const special = profile.specialCircumstances;
+    const estimate = special?.longCareerEstimate;
+    if (special && estimate) {
+      const [year, month] = estimate.departureDate.split('-').map(Number);
+      const canContribute = (row: CareerYear) => row.year < year || (row.year === year && month >= 4);
+      const recorded = career.filter(canContribute);
+      const nextRecorded = updated.filter(canContribute);
+      const quartersChanged = recorded.length !== nextRecorded.length || recorded.some((row, index) => {
+        const next = nextRecorded[index];
+        return row.year !== next.year || row.regime !== next.regime
+          || row.validatedQuarters !== next.validatedQuarters
+          || row.contributedQuarters !== next.contributedQuarters || row.eventType !== next.eventType;
+      });
+      if (quartersChanged) {
+        handleUpdateProfile({ specialCircumstances: { ...special, longCareerEstimate: undefined } });
+      }
     }
     setCareer(updated);
     setCurrentScenario('custom');

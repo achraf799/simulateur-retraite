@@ -85,6 +85,26 @@ export function analyzeLongCareer(
   const requiredEarlyQuarters = Number(birthDate.slice(5, 7)) >= 10 ? 4 : 5;
   const earlyQuarters: LongCareerResult['earlyQuarters'] = {};
   const basis = { earlyQuarters, requiredEarlyQuarters, requiredQuarters };
+  const express = profile.careerMode === 'express';
+  const expressData = express ? profile.expressData : undefined;
+  if (expressData) {
+    const { totalQuarters, contributedQuarters } = expressData;
+    const confirmed = special?.longCareerConfirmedQuarters;
+    const earlyCounts = Object.values(special?.earlyCareerQuarters ?? {});
+    if (special?.earlyCareer && special.earlyQuartersCount > 0 && special.earlyCareerQuarters?.[20] === undefined) {
+      earlyCounts.push(special.earlyQuartersCount);
+    }
+    let inputError: string | undefined;
+    if (!validQuarterCount(totalQuarters) || !validQuarterCount(contributedQuarters)
+      || (confirmed !== undefined && !validQuarterCount(confirmed))) {
+      inputError = 'Renseignez les durées d’assurance en nombres entiers positifs ou nuls.';
+    } else if (contributedQuarters > totalQuarters || (confirmed !== undefined && confirmed > totalQuarters)) {
+      inputError = 'Les trimestres cotisés ou réputés cotisés ne peuvent pas dépasser les trimestres validés.';
+    } else if (earlyCounts.some((count) => count !== undefined && (!validQuarterCount(count) || count > totalQuarters))) {
+      inputError = 'Les trimestres de début de carrière doivent être compris dans le total des trimestres validés.';
+    }
+    if (inputError) return { ...basis, status: 'unknown', details: inputError, inputError };
+  }
   if (!validDate(birthDate) || !validDate(departure) || departure <= birthDate || !departure.endsWith('-01')) {
     return { ...basis, status: 'unknown', details: 'Renseignez une date de naissance et un départ au premier jour d’un mois.' };
   }
@@ -92,11 +112,10 @@ export function analyzeLongCareer(
     return { ...basis, status: 'unknown', details: 'Cette génération ou date de départ nécessite de vérifier le barème historique.' };
   }
 
-  const express = profile.careerMode === 'express';
   const recorded = summarizeCareerQuarters(express ? [] : career, birthYear, departure);
   const confirmed =
     special?.longCareerConfirmedQuarters
-    ?? (express ? profile.expressData?.contributedQuarters : undefined);
+    ?? expressData?.contributedQuarters;
   const estimate = !express && special?.longCareerEstimate?.departureDate === departure
     ? special.longCareerEstimate : undefined;
   const contributedQuarters = validQuarterCount(confirmed) ? confirmed

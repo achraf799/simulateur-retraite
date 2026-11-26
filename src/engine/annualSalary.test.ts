@@ -125,14 +125,20 @@ describe('Salaire annuel moyen de la retraite de base', () => {
     expect(Number.isFinite(result.sam)).toBe(true);
   });
 
-  it('conserve le traitement SAM dans un aller-retour CSV tout en acceptant le format précédent', () => {
+  it('conserve le traitement SAM et les points datés dans un aller-retour CSV compatible avec l’ancien format', () => {
     const rows = [
       careerRow(2023, 21000, { samIncomeKind: 'excluded' }),
-      careerRow(2024, 30000, { samIncomeKind: 'buyback' }),
+      careerRow(2024, 30000, {
+        samIncomeKind: 'buyback',
+        agircPoints: 400,
+        agircPointsAtDeparture: { date: '2024-07-01', points: 0 },
+      }),
     ];
     const csv = exportCareerToCsv(rows);
     const imported = importCareerFromCsv(csv);
     expect(imported.map((row) => row.samIncomeKind)).toEqual(['excluded', 'buyback']);
+    expect(imported[1].agircPoints).toBe(400);
+    expect(imported[1].agircPointsAtDeparture).toEqual({ date: '2024-07-01', points: 0 });
     const previousFormat = csv.split('\n').map((line) => line.split(',').slice(0, 8).join(',')).join('\n');
     expect(simulate(importCareerFromCsv(previousFormat)).topYears).toHaveLength(2);
   });
