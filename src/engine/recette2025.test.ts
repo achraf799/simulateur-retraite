@@ -119,6 +119,22 @@ describe('Campagne de recette 2025', () => {
     expect(res.totalMonthlyGross).toBeCloseTo(6455.71, 2);
   });
 
+  it('T08 : Majoration des points Arrco de 1999 à 2011 et des points acquis depuis 2012', () => {
+    const profile = makeExpressProfile({
+      birthYear: 1962,
+      departureDate: '2025-07-01',
+      totalQuarters: 169,
+      sam: 32000,
+      points: 7000,
+      childrenCount: 3,
+    });
+    if (profile.expressData) profile.expressData.agircPoints1999To2011 = 3000;
+    const result = calculateRetirement(profile, []);
+    expect(result.basePensionMonthlyGross).toBe(1466.67);
+    expect(result.agircMonthlyGross).toBe(905.12);
+    expect(result.totalMonthlyGross).toBe(2371.79);
+  });
+
   it('T17 : Cumul emploi-retraite intégral (T01 + reprise 09/2025 nouvel employeur 2200 €)', () => {
     const profile = makeExpressProfile({
       birthYear: 1962,

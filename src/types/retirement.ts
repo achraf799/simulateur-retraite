@@ -6,6 +6,8 @@ export type EventType = 'Activité' | 'Maladie/AT' | 'Maternité' | 'Chômage' |
 
 export type SamIncomeKind = 'salary' | 'excluded' | 'buyback';
 
+export type AgircLegacyRegime = 'arrco' | 'agirc' | 'camarca' | 'noBonus';
+
 export interface CareerYear {
   year: number;
   currency: Currency;
@@ -19,6 +21,7 @@ export interface CareerYear {
   validatedQuarters: number; // 0 to 4
   contributedQuarters: number; // 0 to 4 (cotisés ou réputés cotisés pour carrière longue)
   agircPoints: number;
+  agircLegacyRegime?: AgircLegacyRegime;
   eventType: EventType;
   samIncomeKind?: SamIncomeKind;
   isTopYear?: boolean; // top N best years for SAM
@@ -61,6 +64,15 @@ export interface ExpressCareerData {
   contributedQuarters: number;
   estimatedSam: number;
   agircPoints: number;
+  agircPointsBefore1999?: number;
+  agircPoints1999To2011?: number;
+}
+
+export interface AgircChildBonusBand {
+  label: string;
+  points: number;
+  rate: number;
+  assumed: boolean;
 }
 
 export interface UserProfile {
@@ -201,6 +213,7 @@ export interface CalculationResult {
   agircMonthlyGrossBeforeBonus: number;
   agircChildBonusMonthly: number;
   agircChildBonusCapped: boolean;
+  agircChildBonusBands: AgircChildBonusBand[];
   agircMonthlyGross: number;
   agircMonthlyNet: number;
   // Total

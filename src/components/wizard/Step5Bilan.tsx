@@ -197,7 +197,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-right sm:text-right shrink-0">
                   <span className="text-xs text-slate-500 block">Taux de remplacement brut</span>
                   <div className="text-3xl font-black text-tealbrand-700 mt-0.5">
-                    {result.grossReplacementRate}{' '}
+                    {result.grossReplacementRate.toLocaleString('fr-FR', { maximumFractionDigits: 2 })}{' '}
                     <span className="text-base font-bold text-tealbrand-600">%</span>
                   </div>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
@@ -224,7 +224,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                       MICO +{formatEuros(result.micoComplementMonthly)}
                     </span>
                   )}
-                  {!isIneligible && profile.childrenCount >= 3 && (
+                  {result.agircChildBonusMonthly > 0 && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                       +10 % enfants
                     </span>
@@ -284,7 +284,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                   )}
                   {!isIneligible && profile.childrenCount >= 3 && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                      +10 % enfants (plafonnée)
+                      Majoration enfants{result.agircChildBonusCapped ? ' plafonnée' : ''}
                     </span>
                   )}
                 </div>
@@ -304,8 +304,26 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                     <span className="text-sm font-normal text-slate-500">€/mois brut</span>
                   </div>
                   <div className="text-xs text-emerald-700 font-semibold mt-0.5">
-                    ≈ {result.agircMonthlyNet.toLocaleString('fr-FR')} € net (-10,1 % cotisations)
+                    ≈ {formatEuros(result.agircMonthlyNet)} net estimé
                   </div>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Taux pleins hors Alsace-Moselle · 10,1 % sur la pension
+                    {result.agircChildBonusBands.length > 0 && ' et 9,1 % sur la majoration pour enfants nés ou élevés'}.
+                  </p>
+                  {result.agircChildBonusBands.length > 0 && (
+                    <div className="mt-3 text-xs text-slate-600">
+                      <p className="font-semibold">Majoration pour enfants nés ou élevés · {formatEuros(result.agircChildBonusMonthly)} brut / mois</p>
+                      <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                        {result.agircChildBonusBands.map((band) => (
+                          <li key={`${band.label}:${band.assumed}`}>
+                            {band.label} · {band.points.toLocaleString('fr-FR')} pts à{' '}
+                            {band.rate.toLocaleString('fr-FR', { style: 'percent', maximumFractionDigits: 2 })}
+                            {band.assumed && ' (hypothèse)'}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -313,7 +331,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
             <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex justify-between">
               <span>Points acquis :</span>
               <strong className="text-slate-800">
-                {result.agircTotalPoints.toLocaleString('fr-FR')} pts (valeur 1,4386 €)
+                {result.agircTotalPoints.toLocaleString('fr-FR')} pts (valeur {result.agircPointValue.toLocaleString('fr-FR')} €)
               </strong>
             </div>
           </div>
@@ -607,10 +625,12 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 <span className="text-[11px] font-mono text-tealbrand-700">Accord ANI</span>
               </h4>
               <div className="p-3 bg-slate-900 text-cyan-300 font-mono rounded-xl text-xs">
-                Agirc = (Points ({result.agircTotalPoints}) × 1,4386 € × 1,10 (Majoration)) / 12
+                Retraite mensuelle brute = (points × valeur du point × coefficient de minoration + majoration annuelle) ÷ 12
               </div>
               <p className="text-slate-600 text-[11px]">
-                (9 274,16 pts × 1,4386 € × 1,10) / 12 = <strong>{result.agircMonthlyGross} €/mois</strong> (bonus de 111,18 € sous le plafond légal de 197,29 €/mois).
+                La majoration annuelle est calculée en appliquant le taux de chaque période aux points correspondants.
+                Le résultat de cette simulation est de <strong>{formatEuros(result.agircMonthlyGross)} brut par mois</strong>,
+                dont {formatEuros(result.agircChildBonusMonthly)} de majoration pour enfants nés ou élevés.
               </p>
             </div>
 

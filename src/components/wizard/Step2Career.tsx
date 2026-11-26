@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CareerYear, UserProfile, Currency, LongCareerResult, SamAnalysis, SamIncomeKind, SamYear } from '../../types/retirement';
+import { AgircLegacyRegime, CareerYear, UserProfile, Currency, LongCareerResult, SamAnalysis, SamIncomeKind, SamYear } from '../../types/retirement';
 import { samIncomeKind } from '../../engine/annualSalary';
 import { SamParametersNote } from '../common/SamParametersNote';
 import { getPassForYear, FRF_TO_EUR_RATE } from '../../constants/passHistory';
@@ -66,13 +66,20 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   };
 
   const handleModeSwitch = (mode: 'detailed' | 'express') => {
+    if (mode === profile.careerMode) return;
+    if (mode === 'detailed' || career.length === 0) {
+      onChangeProfile({ careerMode: mode, expressData });
+      return;
+    }
     onChangeProfile({
       careerMode: mode,
       expressData: {
         totalQuarters: career.reduce((s, r) => s + r.validatedQuarters, 0) || expressData.totalQuarters,
         contributedQuarters: longCareer.contributedQuarters ?? expressData.contributedQuarters,
         estimatedSam: sam || expressData.estimatedSam,
-        agircPoints: career.reduce((s, r) => s + r.agircPoints, 0) || expressData.agircPoints,
+        agircPoints: career.reduce((s, r) => s + r.agircPoints, 0),
+        agircPointsBefore1999: career.reduce((sum, row) => row.year < 1999 ? sum + row.agircPoints : sum, 0) || undefined,
+        agircPoints1999To2011: career.reduce((sum, row) => row.year >= 1999 && row.year < 2012 ? sum + row.agircPoints : sum, 0) || undefined,
       },
     });
   };
@@ -81,6 +88,10 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
     const nextData = { ...expressData, [field]: value };
     if (field === 'totalQuarters' && expressData.contributedQuarters === expressData.totalQuarters) {
       nextData.contributedQuarters = value;
+    }
+    if (field === 'agircPoints' && (expressData.agircPointsBefore1999 ?? 0) + (expressData.agircPoints1999To2011 ?? 0) > value) {
+      nextData.agircPointsBefore1999 = undefined;
+      nextData.agircPoints1999To2011 = undefined;
     }
     onChangeProfile({ expressData: nextData });
   };
@@ -350,7 +361,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
             {/* 4. Points Agirc-Arrco */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-700">
+                <label htmlFor="express-agirc-points" className="text-xs font-bold text-slate-700">
                   Total des points Agirc-Arrco
                 </label>
                 <FormulaTooltip
@@ -361,17 +372,46 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 />
               </div>
               <input
+                id="express-agirc-points"
                 type="number"
                 min="0"
-                step="100"
+                step="0.01"
                 value={expressData.agircPoints}
                 onChange={(e) =>
                   handleUpdateExpress('agircPoints', Math.max(0, parseFloat(e.target.value) || 0))
                 }
                 className="w-full px-3.5 py-2.5 text-base font-bold text-indigo-800 rounded-xl border border-slate-300 focus:border-tealbrand-500 focus:ring-4 focus:ring-tealbrand-50 focus:outline-none font-mono"
               />
-              <p className="text-[11px] text-slate-400">
-                Ex : Sakura = 9 274,16 points
+              <div className="grid gap-2 sm:grid-cols-2">
+                {([
+                  ['agircPointsBefore1999', 'agircPoints1999To2011', 'Points avant 1999'],
+                  ['agircPoints1999To2011', 'agircPointsBefore1999', 'Points de 1999 à 2011'],
+                ] as const).map(([field, otherField, label]) => {
+                  const remaining = Math.max(0, expressData.agircPoints - (expressData[otherField] ?? 0));
+                  return (
+                    <label key={field} className="text-xs font-semibold text-slate-700">
+                      {label}
+                      <input
+                        type="number"
+                        min={0}
+                        max={remaining}
+                        step="0.01"
+                        value={expressData[field] ?? ''}
+                        onChange={(event) => onChangeProfile({
+                          expressData: {
+                            ...expressData,
+                            [field]: event.target.value === '' ? undefined : Math.min(remaining, Math.max(0, event.target.valueAsNumber)),
+                          },
+                        })}
+                        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2"
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-slate-600">
+                Ventilation facultative. Les points antérieurs à 2012 sont supposés Arrco.
+                Le solde est traité comme acquis depuis 2012, à 10 % dès trois enfants nés ou élevés.
               </p>
             </div>
           </div>
@@ -684,6 +724,22 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                                 }
                                 className="w-16 text-right text-[11px] bg-white border border-slate-200 rounded px-1 py-0.5"
                               />
+                              {row.year < 2012 && (
+                                <select
+                                  aria-label={`Ancien régime Agirc-Arrco en ${row.year}`}
+                                  value={row.agircLegacyRegime ?? ''}
+                                  onChange={(event) => updateCareerRow(idx, {
+                                    agircLegacyRegime: (event.target.value || undefined) as AgircLegacyRegime | undefined,
+                                  })}
+                                  className="mt-1 block w-full rounded border border-slate-200 bg-white px-1 py-0.5 font-sans text-[11px]"
+                                >
+                                  <option value="">Caisse inconnue</option>
+                                  <option value="arrco">{row.year < 1999 ? 'Arrco avec majoration' : 'Arrco'}</option>
+                                  <option value="agirc">Agirc</option>
+                                  {row.year < 1999 && <option value="camarca">Camarca</option>}
+                                  {row.year < 1999 && <option value="noBonus">Caisse sans majoration</option>}
+                                </select>
+                              )}
                             </td>
 
                             {/* Badge Top N */}

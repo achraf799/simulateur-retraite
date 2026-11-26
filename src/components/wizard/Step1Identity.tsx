@@ -386,13 +386,13 @@ export const Step1Identity: React.FC<Step1IdentityProps> = ({ profile, onChangeP
               <span>Enfants nés et élevés</span>
               <FormulaTooltip
                 title="Majoration Enfants"
-                formula="+10 % sur la Base et l'Agirc-Arrco dès 3 enfants"
-                explanation="À partir de 3 enfants élevés pendant au moins 9 ans avant leurs 16 ans, les pensions de base et complémentaire sont majorées de 10 %."
+                formula="Dès 3 enfants, +10 % pour la base et taux par période pour l’Agirc-Arrco"
+                explanation="Le simulateur estime la majoration pour enfants nés ou élevés. Pour la complémentaire, le taux dépend de la période d’acquisition des points et de l’ancienne caisse."
                 articleCss="Art. L. 351-12 CSS & Accord ANI"
               />
             </label>
             <p className="text-xs text-slate-500 mt-0.5">
-              Ouvre droit à des trimestres supplémentaires et à la majoration de 10 %.
+              Peut ouvrir droit à des trimestres supplémentaires et à une majoration de pension.
             </p>
           </div>
 
@@ -472,10 +472,10 @@ export const Step1Identity: React.FC<Step1IdentityProps> = ({ profile, onChangeP
             <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-tealbrand-800">
               {profile.childrenCount >= 3 ? (
                 <li className="font-semibold text-emerald-700">
-                  Majoration de +10 % sur la retraite de base et l'Agirc-Arrco (plafonnée à 2 367,48 €/an).
+                  Majoration de 10 % sur la retraite de base. La majoration Agirc-Arrco dépend de vos points par période.
                 </li>
               ) : (
-                <li>Majoration de +10 % applicable dès le 3e enfant.</li>
+                <li>Majoration pour enfants nés ou élevés à partir de trois enfants.</li>
               )}
               {profile.motherBonusQuarters && profile.sex === 'F' && (
                 <li>

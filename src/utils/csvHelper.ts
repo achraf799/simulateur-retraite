@@ -13,6 +13,7 @@ export function exportCareerToCsv(career: CareerYear[]): string {
     'PointsAgirc',
     'TypeEvenement',
     'TraitementSAM',
+    'RegimeAgircHistorique',
   ];
 
   const rows = career.map((r) => [
@@ -25,6 +26,7 @@ export function exportCareerToCsv(career: CareerYear[]): string {
     r.agircPoints,
     r.eventType,
     r.samIncomeKind ?? '',
+    r.agircLegacyRegime ?? '',
   ]);
 
   return [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
@@ -41,7 +43,8 @@ export function importCareerFromCsv(csvText: string, liquidationYear = 2025): Ca
   const regIdx = headers.findIndex((h) => h.includes('regime'));
   const trimValIdx = headers.findIndex((h) => h.includes('valide') || h.includes('trimestresvalides'));
   const trimCotIdx = headers.findIndex((h) => h.includes('cotise') || h.includes('trimestrescotises'));
-  const pointsIdx = headers.findIndex((h) => h.includes('points') || h.includes('agirc'));
+  const agircLegacyIdx = headers.indexOf('regimeagirchistorique');
+  const pointsIdx = headers.findIndex((h, index) => index !== agircLegacyIdx && (h.includes('points') || h.includes('agirc')));
   const eventIdx = headers.findIndex((h) => h.includes('event') || h.includes('evenement'));
 
   const samIdx = headers.indexOf('traitementsam');
@@ -70,6 +73,7 @@ export function importCareerFromCsv(csvText: string, liquidationYear = 2025): Ca
     const revaluedSalaryEur = Number((retainedSalaryEur * cnavCoeff).toFixed(2));
 
     const samIncomeKind = cols[samIdx];
+    const agircLegacyRegime = cols[agircLegacyIdx];
     parsedRows.push({
       year,
       currency,
@@ -84,6 +88,8 @@ export function importCareerFromCsv(csvText: string, liquidationYear = 2025): Ca
       contributedQuarters,
       agircPoints,
       eventType,
+      ...(agircLegacyRegime === 'arrco' || agircLegacyRegime === 'agirc'
+        || agircLegacyRegime === 'camarca' || agircLegacyRegime === 'noBonus' ? { agircLegacyRegime } : {}),
       ...(samIncomeKind === 'salary' || samIncomeKind === 'excluded' || samIncomeKind === 'buyback'
         ? { samIncomeKind }
         : {}),

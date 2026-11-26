@@ -30,6 +30,7 @@ export const REPERES_2026 = {
   // Prélèvements sociaux (taux normal)
   cotisationsSocialesBaseTaux: 0.091, // CSG 8.3% + CRDS 0.5% + CASA 0.3%
   cotisationsSocialesAgircTaux: 0.101, // CSG 8.3% + CRDS 0.5% + CASA 0.3% + Maladie 1.0%
+  cotisationsSocialesAgircMajorationEnfantsTaux: 0.091, // Hors cotisation maladie pour enfants nés ou élevés
 
   // Âge d'annulation de la décote (taux plein automatique)
   ageTauxPleinAutomatiqueAnnees: 67,

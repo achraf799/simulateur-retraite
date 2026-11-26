@@ -1,6 +1,7 @@
 import { CareerYear, UserProfile, CalculationResult } from '../types/retirement';
 import { calculateAnnualSalary } from './annualSalary';
 import { analyzeCer } from './cerCalculator';
+import { calculateAgircChildBonusBands } from './agircArrco';
 import { analyzeLongCareer, firstPensionDate } from './longCareer';
 import { addMonths, validDate } from '../utils/civilDates';
 import { REPERES_2026, GENERATION_SCALES } from '../constants/parameters2026';
@@ -178,6 +179,11 @@ export function calculateRetirement(
   let agircChildBonusCapped = false;
   let agircMonthlyGross = 0;
   let agircMonthlyNet = 0;
+  const agircChildBonusBands = eligibilityStatus === 'ineligible' ? [] : calculateAgircChildBonusBands(
+    profile.childrenCount,
+    rawCareer,
+    isExpressMode ? profile.expressData : undefined,
+  );
 
   if (eligibilityStatus !== 'ineligible') {
     const agircAnnualGrossBeforeBonus =
@@ -186,18 +192,12 @@ export function calculateRetirement(
       (agircAnnualGrossBeforeBonus / 12).toFixed(2)
     );
 
-    // Majoration enfants Agirc-Arrco (+10% dès 3 enfants, plafonnée à 2 367,48 €/an au 01/11/2024)
-    let agircChildBonusAnnual = 0;
-    if (profile.childrenCount >= 3) {
-      const rawBonusAnnual = agircAnnualGrossBeforeBonus * 0.10;
-      if (rawBonusAnnual > REPERES_2026.plafondMajorationEnfantsAgircAnnuel) {
-        agircChildBonusAnnual = REPERES_2026.plafondMajorationEnfantsAgircAnnuel;
-        agircChildBonusCapped = true;
-      } else {
-        agircChildBonusAnnual = rawBonusAnnual;
-        agircChildBonusCapped = false;
-      }
-    }
+    // La majoration pour enfants nés ou élevés est calculée sur les droits avant minoration.
+    const bonusPoints = agircChildBonusBands.reduce((sum, band) => sum + band.points * band.rate, 0);
+    const rawBonusAnnual = bonusPoints * agircPointValue;
+    const bonusCap = REPERES_2026.plafondMajorationEnfantsAgircAnnuel;
+    const agircChildBonusAnnual = profile.birthDate < '1951-08-02' ? rawBonusAnnual : Math.min(rawBonusAnnual, bonusCap);
+    agircChildBonusCapped = agircChildBonusAnnual < rawBonusAnnual;
     agircChildBonusMonthly = Number((agircChildBonusAnnual / 12).toFixed(2));
 
     // Arrondi final unique après annualisation + majoration + mensualisation
@@ -205,9 +205,10 @@ export function calculateRetirement(
       ((agircAnnualGrossBeforeBonus + agircChildBonusAnnual) / 12).toFixed(2)
     );
 
-    // Prélèvements sociaux Agirc-Arrco (-10.1% au taux normal)
+    const annualNetBeforeBonus = agircAnnualGrossBeforeBonus * (1 - REPERES_2026.cotisationsSocialesAgircTaux);
+    const annualNetBonus = agircChildBonusAnnual * (1 - REPERES_2026.cotisationsSocialesAgircMajorationEnfantsTaux);
     agircMonthlyNet = Number(
-      (agircMonthlyGross * (1 - REPERES_2026.cotisationsSocialesAgircTaux)).toFixed(2)
+      ((annualNetBeforeBonus + annualNetBonus) / 12).toFixed(2)
     );
   }
 
@@ -225,9 +226,8 @@ export function calculateRetirement(
     // Formule : SAM x Taux x Proratisation x (1 + Surcote)
     const basePensionAnnualBeforeMico =
       sam * liquidationRate * proratisation * (1 + surcoteRate);
-    basePensionMonthlyGrossBeforeMico = Number(
-      (basePensionAnnualBeforeMico / 12).toFixed(2)
-    );
+    const rawBaseMonthlyBeforeMico = basePensionAnnualBeforeMico / 12;
+    basePensionMonthlyGrossBeforeMico = Number(rawBaseMonthlyBeforeMico.toFixed(2));
 
     // Minimum contributif (MICO) : taux plein requis + liquidation de toutes les pensions (Art. L. 351-10 CSS)
     const allPensionsLiquidated = profile.allPensionsLiquidated !== false;
@@ -252,24 +252,20 @@ export function calculateRetirement(
       }
     }
 
-    basePensionMonthlyGrossBeforeBonus = Number(
-      (basePensionMonthlyGrossBeforeMico + micoComplementMonthly).toFixed(2)
-    );
+    const rawBaseMonthlyBeforeBonus = rawBaseMonthlyBeforeMico + micoComplementMonthly;
+    basePensionMonthlyGrossBeforeBonus = Number(rawBaseMonthlyBeforeBonus.toFixed(2));
 
     // Majoration enfants (+10% dès 3 enfants nés et élevés, Art. L. 351-12 CSS)
-    baseChildBonusMonthly =
-      profile.childrenCount >= 3
-        ? Number((basePensionMonthlyGrossBeforeBonus * 0.10).toFixed(2))
-        : 0;
+    const rawBaseChildBonus = profile.childrenCount >= 3 ? rawBaseMonthlyBeforeBonus * 0.10 : 0;
+    baseChildBonusMonthly = Number(rawBaseChildBonus.toFixed(2));
 
-    basePensionMonthlyGross = Number(
-      (basePensionMonthlyGrossBeforeBonus + baseChildBonusMonthly).toFixed(2)
-    );
+    const rawBaseMonthlyGross = rawBaseMonthlyBeforeBonus + rawBaseChildBonus;
+    basePensionMonthlyGross = Number(rawBaseMonthlyGross.toFixed(2));
     basePensionAnnualGross = Number((basePensionMonthlyGross * 12).toFixed(2));
 
     // Estimation nette (prélèvements sociaux -9.1% au taux normal)
     basePensionMonthlyNet = Number(
-      (basePensionMonthlyGross * (1 - REPERES_2026.cotisationsSocialesBaseTaux)).toFixed(2)
+      (rawBaseMonthlyGross * (1 - REPERES_2026.cotisationsSocialesBaseTaux)).toFixed(2)
     );
   }
 
@@ -343,6 +339,7 @@ export function calculateRetirement(
     agircMonthlyGrossBeforeBonus,
     agircChildBonusMonthly,
     agircChildBonusCapped,
+    agircChildBonusBands,
     agircMonthlyGross,
     agircMonthlyNet,
     totalMonthlyGross,

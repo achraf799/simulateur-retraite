@@ -47,17 +47,17 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
       expect(result.basePensionMonthlyGross).toBe(1875.06);
     });
 
-    it('doit calculer une pension Agirc-Arrco brute avec +10% de ≈ 1 223,00 €/mois', () => {
-      // 9 274.16 pts * 1.4386 € = 13 341.79 €/an -> 1 111.82 €/mois + 10% (111.18 €) = 1 223.00 €/mois
+    it('calcule la complémentaire avec les taux historiques retenus dans l’étude Sakura', () => {
       expect(result.agircTotalPoints).toBe(9274.16);
       expect(result.agircPointValue).toBe(1.4386);
-      expect(result.agircMonthlyGross).toBeCloseTo(1223.00, 1);
+      expect(result.agircMonthlyGross).toBe(1209.00);
+      expect(result.agircMonthlyNet).toBe(1087.86);
     });
 
     it('calcule le total brut, le net et le taux de remplacement de Sakura', () => {
-      expect(result.totalMonthlyGross).toBe(3098.06);
-      expect(result.totalMonthlyNet).toBe(2803.91);
-      expect(result.grossReplacementRate).toBe(68.85);
+      expect(result.totalMonthlyGross).toBe(3084.06);
+      expect(result.totalMonthlyNet).toBe(2792.29);
+      expect(result.grossReplacementRate).toBe(68.53);
     });
 
     it('doit déclencher une ALERTE ROUGE sur le Cumul Emploi-Retraite (carence 6 mois chez l’ancien employeur)', () => {
@@ -70,6 +70,19 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
       expect(cer.paidComplementaryMonthly).toBeUndefined();
       expect(cer.generatesNewRights).toBe(false);
     });
+  });
+
+  it('distingue les anciennes caisses connues, y compris pour des points acquis la même année', () => {
+    const career: CareerYear[] = [
+      { ...SAKURA_CAREER[0], year: 1998, agircPoints: 1000, agircLegacyRegime: 'camarca' },
+      { ...SAKURA_CAREER[0], year: 1998, agircPoints: 1000, agircLegacyRegime: 'noBonus' },
+      { ...SAKURA_CAREER[0], year: 2000, agircPoints: 1000, agircLegacyRegime: 'agirc' },
+      { ...SAKURA_CAREER[0], year: 2012, agircPoints: 1000 },
+    ];
+    const result = calculateRetirement({ ...SAKURA_PROFILE, birthDate: '1958-01-01' }, career);
+    // Taux de la fiche Agirc-Arrco pour trois enfants : 7,5 %, 0 %, 8 % et 10 %.
+    expect(result.agircChildBonusMonthly).toBe(30.57);
+    expect(result.agircMonthlyGross).toBe(510.10);
   });
 
   describe('2. Validation du Cas Test 2025 (Barème Réforme 2023 & 25 meilleures années)', () => {
