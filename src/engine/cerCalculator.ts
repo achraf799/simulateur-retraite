@@ -73,8 +73,10 @@ export function analyzeCer(
     || resumption < departure || firstPension > departure) {
     return unavailable('Vérifiez les dates. La première pension doit prendre effet au plus tard au départ simulé, et la reprise au plus tôt à ce départ.');
   }
-  if (!retirementEligible && firstPension === departure) {
-    return unavailable('Le départ simulé ne permet pas de liquider la pension. Modifiez la date de départ pour évaluer le cumul.');
+  if (!retirementEligible) {
+    return unavailable(firstPension < departure
+      ? 'Ressources de cumul indéterminées. Le chiffrage nécessite les montants des pensions déjà liquidées.'
+      : 'Le départ simulé ne permet pas de liquider la pension. Modifiez la date de départ pour évaluer le cumul.');
   }
   if (!basePensionEstimated) {
     return unavailable('Complétez le relevé ou saisissez un salaire annuel moyen estimé pour chiffrer le cumul.');
@@ -98,8 +100,9 @@ export function analyzeCer(
     const reachesFullCumul = fullCumulStart <= end;
     const reachesLegalAge = legalBirthday <= end;
     const liquidated = profile.cerAllPensionsLiquidated;
-    const baseSuspensionStartDate = reachesLegalAge && liquidated === false
-      ? followingMonth(resumption < legalBirthday ? legalBirthday : resumption)
+    const suspensionStart = followingMonth(resumption < legalBirthday ? legalBirthday : resumption);
+    const baseSuspensionStartDate = liquidated === false && suspensionStart <= end
+      ? suspensionStart
       : undefined;
 
     const bands: { band: CerReductionBand; start: string; end: string }[] = [
@@ -148,7 +151,7 @@ export function analyzeCer(
       status: periods.length === 0 && generatesNewRights ? 'INTEGRAL' : 'PLAFONNE',
       alertLevel: baseSuspensionStartDate ? 'RED' : annualReduction === 0 ? 'GREEN' : 'YELLOW',
       alertMessage,
-      suspensionApplies: Boolean(baseSuspensionStartDate && baseSuspensionStartDate <= end),
+      suspensionApplies: baseSuspensionStartDate !== undefined,
       baseSuspensionStartDate,
       fullCumulStartDate: fullCumulStart,
       periods,
