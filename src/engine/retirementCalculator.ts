@@ -5,7 +5,7 @@ import { analyzeSurcote } from './surcote';
 import { calculateAgircChildBonusBands, selectAgircRights } from './agircArrco';
 import { analyzeLongCareer, firstPensionDate, summarizeCareerQuarters } from './longCareer';
 import { addMonths, validDate } from '../utils/civilDates';
-import { REPERES_2026, GENERATION_SCALES } from '../constants/parameters2026';
+import { REPERES_2026, GENERATION_SCALES, getHistoricalInsuranceDurations } from '../constants/parameters2026';
 import { getPensionScales } from '../constants/pensionScales';
 
 /**
@@ -67,22 +67,15 @@ export function calculateRetirement(
     return true;
   });
 
-  let legalAgeYears = 64;
+  const historicalDurations = birthYear < 1961 ? getHistoricalInsuranceDurations(birthYear) : undefined;
+  let legalAgeYears = historicalDurations ? 62 : 64;
   let legalAgeMonths = 0;
-  let requiredQuarters = 172;
+  let requiredQuarters = historicalDurations?.requiredQuarters ?? 172;
 
   if (genScale) {
     legalAgeYears = isSuspension2026 ? genScale.legalAgeYears2026 : genScale.legalAgeYears2023;
     legalAgeMonths = isSuspension2026 ? genScale.legalAgeMonths2026 : genScale.legalAgeMonths2023;
     requiredQuarters = isSuspension2026 ? genScale.quartersRequired2026 : genScale.quartersRequired2023;
-  } else if (birthYear <= 1960) {
-    legalAgeYears = 62;
-    legalAgeMonths = 0;
-    requiredQuarters = 167;
-  } else if (birthYear >= 1969) {
-    legalAgeYears = 64;
-    legalAgeMonths = 0;
-    requiredQuarters = 172;
   }
 
   const legalAgeTotalMonths = legalAgeYears * 12 + legalAgeMonths;
@@ -159,8 +152,9 @@ export function calculateRetirement(
     agircAbattementCoeff = 0;
   }
 
-  // Proratisation : MIN(Trimestres, Requis) / Requis
-  const proratisation = Math.min(1.0, totalValidatedQuarters / requiredQuarters);
+  // La durée de référence de la pension peut différer de celle du taux plein.
+  const prorationQuarters = historicalDurations?.prorationQuarters ?? requiredQuarters;
+  const proratisation = Math.min(1.0, totalValidatedQuarters / prorationQuarters);
 
   // 7. Retraite complémentaire Agirc-Arrco (calculée avant le MICO pour vérifier le plafond total)
   const pensionScales = getPensionScales(profile.desiredDepartureDate);
@@ -302,6 +296,7 @@ export function calculateRetirement(
       formatted: `${legalAgeYears} ans ${legalAgeMonths > 0 ? `${legalAgeMonths} mois` : ''}`.trim(),
     },
     requiredQuarters,
+    prorationQuarters,
     totalValidatedQuarters,
     totalContributedQuarters,
     longCareer,

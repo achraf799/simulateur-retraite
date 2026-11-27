@@ -4,6 +4,34 @@ import { BLANK_PROFILE, SAKURA_PROFILE, SAKURA_CAREER, LFSS_2026_PROFILE, LFSS_2
 import { UserProfile, CareerYear } from '../types/retirement';
 import { REPERES_2026 } from '../constants/parameters2026';
 
+describe('Durée d’assurance des générations antérieures à 1961', () => {
+  it.each([
+    [1943, 160, 150],
+    [1944, 160, 152],
+    [1947, 160, 158],
+    [1948, 160, 160],
+    [1949, 161, 161],
+    [1950, 162, 162],
+    [1951, 163, 163],
+    [1952, 164, 164],
+    [1953, 165, 165],
+    [1955, 166, 166],
+    [1957, 166, 166],
+    [1958, 167, 167],
+    [1960, 167, 167],
+  ])('calcule une pension entière pour la génération %i avec la durée de référence atteinte', (year, required, reference) => {
+    const result = calculateRetirement({
+      ...BLANK_PROFILE,
+      birthDate: `${year}-01-01`,
+      desiredDepartureDate: '2025-01-01',
+      expressData: { totalQuarters: reference, contributedQuarters: reference, estimatedSam: 48000, agircPoints: 0 },
+    }, []);
+    expect(result.requiredQuarters).toBe(required);
+    expect(result.prorationQuarters).toBe(reference);
+    expect(result.basePensionMonthlyGross).toBe(2000);
+  });
+});
+
 describe('Barèmes à la date de départ', () => {
   const profile: UserProfile = {
     ...BLANK_PROFILE,

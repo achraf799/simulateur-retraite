@@ -195,6 +195,7 @@ export interface CalculationResult {
     formatted: string;
   };
   requiredQuarters: number;
+  prorationQuarters: number;
   totalValidatedQuarters: number;
   totalContributedQuarters: number;
   longCareer: LongCareerResult;
@@ -211,7 +212,7 @@ export interface CalculationResult {
   surcoteQuarters: number;
   surcoteRate: number;
   surcote: SurcoteAnalysis;
-  proratisation: number; // MIN(validatedQuarters, requiredQuarters) / requiredQuarters
+  proratisation: number; // MIN(validatedQuarters, prorationQuarters) / prorationQuarters
   pensionScales: ReturnType<typeof getPensionScales>;
   // Retraite de base
   basePensionMonthlyGrossBeforeMico: number;

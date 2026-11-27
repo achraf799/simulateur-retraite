@@ -296,7 +296,7 @@ export const Step4Bilan: React.FC<Step4BilanProps> = ({
               <div>
                 <strong className="block text-slate-900 mb-1">Formule Retraite de Base :</strong>
                 <code className="text-[11px] bg-white p-2 rounded border border-slate-200 block font-mono text-slate-800">
-                  SAM × 50% × ({result.totalValidatedQuarters}/{result.requiredQuarters}) × 1,10 = {result.basePensionMonthlyGross.toFixed(2)} €/m
+                  SAM × 50% × ({Math.min(result.totalValidatedQuarters, result.prorationQuarters)}/{result.prorationQuarters}) × 1,10 = {result.basePensionMonthlyGross.toFixed(2)} €/m
                 </code>
               </div>
               <div>

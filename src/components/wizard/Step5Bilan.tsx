@@ -507,6 +507,9 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 {result.totalValidatedQuarters} trimestres validés pour {result.requiredQuarters} requis.
                 {profile.careerMode !== 'express' && ` Le relevé compte ${result.totalContributedQuarters} trimestres cotisés par l’activité.`}
               </p>
+              {result.prorationQuarters !== result.requiredQuarters && (
+                <p>La proratisation de la retraite de base utilise une durée de référence de {result.prorationQuarters} trimestres.</p>
+              )}
               <LongCareerSummary result={result.longCareer} />
             </div>
 
