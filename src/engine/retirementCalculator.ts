@@ -1,10 +1,12 @@
 import { CareerYear, UserProfile, CalculationResult } from '../types/retirement';
 import { calculateAnnualSalary } from './annualSalary';
 import { analyzeCer } from './cerCalculator';
-import { calculateAgircChildBonusBands } from './agircArrco';
+import { analyzeSurcote } from './surcote';
+import { calculateAgircChildBonusBands, selectAgircRights } from './agircArrco';
 import { analyzeLongCareer, firstPensionDate, summarizeCareerQuarters } from './longCareer';
 import { addMonths, validDate } from '../utils/civilDates';
-import { REPERES_2026, GENERATION_SCALES } from '../constants/parameters2026';
+import { REPERES_2026, GENERATION_SCALES, getHistoricalInsuranceDurations } from '../constants/parameters2026';
+import { getPensionScales } from '../constants/pensionScales';
 
 /**
  * MOTEUR DE CALCUL DE RETRAITE OBLIGATOIRE (CNAV/LURA + AGIRC-ARRCO) & CUMUL EMPLOI-RETRAITE
@@ -65,22 +67,15 @@ export function calculateRetirement(
     return true;
   });
 
-  let legalAgeYears = 64;
+  const historicalDurations = birthYear < 1961 ? getHistoricalInsuranceDurations(birthYear) : undefined;
+  let legalAgeYears = historicalDurations ? 62 : 64;
   let legalAgeMonths = 0;
-  let requiredQuarters = 172;
+  let requiredQuarters = historicalDurations?.requiredQuarters ?? 172;
 
   if (genScale) {
     legalAgeYears = isSuspension2026 ? genScale.legalAgeYears2026 : genScale.legalAgeYears2023;
     legalAgeMonths = isSuspension2026 ? genScale.legalAgeMonths2026 : genScale.legalAgeMonths2023;
     requiredQuarters = isSuspension2026 ? genScale.quartersRequired2026 : genScale.quartersRequired2023;
-  } else if (birthYear <= 1960) {
-    legalAgeYears = 62;
-    legalAgeMonths = 0;
-    requiredQuarters = 167;
-  } else if (birthYear >= 1969) {
-    legalAgeYears = 64;
-    legalAgeMonths = 0;
-    requiredQuarters = 172;
   }
 
   const legalAgeTotalMonths = legalAgeYears * 12 + legalAgeMonths;
@@ -94,7 +89,8 @@ export function calculateRetirement(
     : summarizeCareerQuarters(rawCareer, birthYear, profile.desiredDepartureDate);
   const totalValidatedQuarters = quarters.validated;
   const totalContributedQuarters = quarters.contributed;
-  const agircTotalPoints = expressData?.agircPoints ?? rawCareer.reduce((points, row) => points + row.agircPoints, 0);
+  const agircCareer = selectAgircRights(expressData ? [] : rawCareer, profile.desiredDepartureDate);
+  const agircTotalPoints = expressData?.agircPoints ?? agircCareer.rights.reduce((points, row) => points + row.agircPoints, 0);
 
   const longCareer = analyzeLongCareer(profile, rawCareer, legalAgeTotalMonths, requiredQuarters);
   const isCarriereLongue = longCareer.status === 'eligible';
@@ -107,7 +103,9 @@ export function calculateRetirement(
 
   // Statut d'éligibilité globale
   let eligibilityStatus: 'eligible_taux_plein' | 'eligible_decote' | 'ineligible';
-  if (isCarriereLongue || isAutomaticFullRateSpecial) {
+  if (longCareer.inputError) {
+    eligibilityStatus = 'ineligible';
+  } else if (isCarriereLongue || isAutomaticFullRateSpecial) {
     eligibilityStatus = 'eligible_taux_plein';
   } else if (reachesLegalAge) {
     if (totalValidatedQuarters >= requiredQuarters || ageYears >= REPERES_2026.ageTauxPleinAutomatiqueAnnees) {
@@ -125,20 +123,12 @@ export function calculateRetirement(
   // 6. Liquidation, décote, surcote et coefficient d'abattement Agirc-Arrco
   let liquidationRate = 0.50; // Taux plein
   let decoteQuarters = 0;
-  let surcoteQuarters = 0;
-  let surcoteRate = 0;
+  const surcote = analyzeSurcote(profile, legalAgeTotalMonths, requiredQuarters, quarters, eligibilityStatus === 'eligible_taux_plein');
+  const surcoteQuarters = surcote.quarters;
+  const surcoteRate = surcoteQuarters * 0.0125;
   let agircAbattementCoeff = 1;
 
-  if (eligibilityStatus === 'eligible_taux_plein') {
-    liquidationRate = 0.50;
-    // Surcote : trimestres travaillés APRÈS l'âge légal ET au-delà des trimestres requis (Art. L. 351-1-2 CSS)
-    if (ageTotalMonths > legalAgeTotalMonths && totalValidatedQuarters > requiredQuarters) {
-      const quartersOverAge = Math.floor((ageTotalMonths - legalAgeTotalMonths) / 3);
-      const quartersOverRequired = totalValidatedQuarters - requiredQuarters;
-      surcoteQuarters = Math.min(quartersOverAge, quartersOverRequired);
-      surcoteRate = surcoteQuarters * 0.0125; // +1.25% par trimestre supplémentaire
-    }
-  } else if (eligibilityStatus === 'eligible_decote') {
+  if (eligibilityStatus === 'eligible_decote') {
     // Décote : min des trimestres manquants pour atteindre le taux plein en durée ou l'âge d'annulation (67 ans)
     const missingQuartersDuration = Math.max(0, requiredQuarters - totalValidatedQuarters);
     const missingQuartersAge = Math.max(
@@ -156,17 +146,19 @@ export function calculateRetirement(
         ? computeAgircAbattementCoeff(missingQuartersDuration)
         : coeffAge;
     agircAbattementCoeff = Math.max(coeffDuration, coeffAge);
-  } else {
+  } else if (eligibilityStatus === 'ineligible') {
     // Départ refusé : aucune pension liquidable à la date demandée
     liquidationRate = 0;
     agircAbattementCoeff = 0;
   }
 
-  // Proratisation : MIN(Trimestres, Requis) / Requis
-  const proratisation = Math.min(1.0, totalValidatedQuarters / requiredQuarters);
+  // La durée de référence de la pension peut différer de celle du taux plein.
+  const prorationQuarters = historicalDurations?.prorationQuarters ?? requiredQuarters;
+  const proratisation = Math.min(1.0, totalValidatedQuarters / prorationQuarters);
 
   // 7. Retraite complémentaire Agirc-Arrco (calculée avant le MICO pour vérifier le plafond total)
-  const agircPointValue = REPERES_2026.valeurPointAgircArrco;
+  const pensionScales = getPensionScales(profile.desiredDepartureDate);
+  const agircPointValue = pensionScales.agircArrco.pointValue;
   let agircMonthlyGrossBeforeBonus = 0;
   let agircChildBonusMonthly = 0;
   let agircChildBonusCapped = false;
@@ -175,7 +167,7 @@ export function calculateRetirement(
   let agircMonthlyNet = 0;
   const agircChildBonusBands = eligibilityStatus === 'ineligible' ? [] : calculateAgircChildBonusBands(
     profile.childrenCount,
-    rawCareer,
+    agircCareer.rights,
     expressData,
   );
 
@@ -189,7 +181,7 @@ export function calculateRetirement(
     // La majoration pour enfants nés ou élevés est calculée sur les droits avant minoration.
     const bonusPoints = agircChildBonusBands.reduce((sum, band) => sum + band.points * band.rate, 0);
     const rawBonusAnnual = bonusPoints * agircPointValue;
-    const bonusCap = REPERES_2026.plafondMajorationEnfantsAgircAnnuel;
+    const bonusCap = pensionScales.agircArrco.annualChildBonusCap;
     const agircChildBonusAnnual = profile.birthDate < '1951-08-02' ? rawBonusAnnual : Math.min(rawBonusAnnual, bonusCap);
     agircChildBonusCapped = agircChildBonusAnnual < rawBonusAnnual;
     agircChildBonusMonthly = Number((agircChildBonusAnnual / 12).toFixed(2));
@@ -208,6 +200,7 @@ export function calculateRetirement(
   // 8. Retraite de base (Assurance Retraite / LURA) + Minimum Contributif (MICO)
   let basePensionMonthlyGrossBeforeMico = 0;
   let micoApplied = false;
+  let micoProjected = false;
   let micoComplementMonthly = 0;
   let basePensionMonthlyGrossBeforeBonus = 0;
   let baseChildBonusMonthly = 0;
@@ -225,22 +218,22 @@ export function calculateRetirement(
 
     // Minimum contributif (MICO) : taux plein requis + liquidation de toutes les pensions (Art. L. 351-10 CSS)
     const allPensionsLiquidated = profile.allPensionsLiquidated !== false;
-    if (eligibilityStatus === 'eligible_taux_plein' && allPensionsLiquidated) {
-      const micoBaseProrated =
-        REPERES_2026.micoBaseMensuel2025 * Math.min(1, totalValidatedQuarters / requiredQuarters);
+    if (eligibilityStatus === 'eligible_taux_plein' && allPensionsLiquidated && !agircCareer.pending) {
+      const { baseMonthly, increasedMonthly, monthlyPensionsCap } = pensionScales.mico;
+      const micoBaseProrated = baseMonthly * proratisation;
       const hasMicoMajoration = totalContributedQuarters >= REPERES_2026.micoSeuilTrimestresCotises;
-      const micoMajorationDiff =
-        REPERES_2026.micoMajoreMensuel2025 - REPERES_2026.micoBaseMensuel2025;
+      const micoMajorationDiff = increasedMonthly - baseMonthly;
       const micoMajorationProrated = hasMicoMajoration
         ? micoMajorationDiff * Math.min(1, totalContributedQuarters / requiredQuarters)
         : 0;
       const micoTargetMonthly = Number((micoBaseProrated + micoMajorationProrated).toFixed(2));
 
       if (basePensionMonthlyGrossBeforeMico < micoTargetMonthly) {
+        micoProjected = pensionScales.mico.projected;
         const rawComplement = Number((micoTargetMonthly - basePensionMonthlyGrossBeforeMico).toFixed(2));
         const otherPensions = Math.max(0, profile.otherPensionsMonthly || 0);
         const totalWithRawMico = basePensionMonthlyGrossBeforeMico + rawComplement + agircMonthlyGross + otherPensions;
-        const ecretement = Math.max(0, totalWithRawMico - REPERES_2026.micoPlafondPensionsMensuel2025);
+        const ecretement = Math.max(0, totalWithRawMico - monthlyPensionsCap);
         micoComplementMonthly = Number(Math.max(0, rawComplement - ecretement).toFixed(2));
         micoApplied = micoComplementMonthly > 0;
       }
@@ -283,7 +276,10 @@ export function calculateRetirement(
     eligibilityStatus !== 'ineligible',
     samAnalysis.source !== 'unavailable',
     basePensionMonthlyGross,
-    agircMonthlyGross
+    agircMonthlyGross,
+    longCareer.inputError
+      ?? (agircCareer.pending ? 'Confirmez les points Agirc-Arrco acquis avant la date de départ pour chiffrer le cumul.' : undefined)
+      ?? (surcote.status === 'pending' ? 'Confirmez les trimestres de surcote dans « Départ & CER » pour chiffrer le cumul.' : undefined),
   );
 
   return {
@@ -300,6 +296,7 @@ export function calculateRetirement(
       formatted: `${legalAgeYears} ans ${legalAgeMonths > 0 ? `${legalAgeMonths} mois` : ''}`.trim(),
     },
     requiredQuarters,
+    prorationQuarters,
     totalValidatedQuarters,
     totalContributedQuarters,
     longCareer,
@@ -315,9 +312,12 @@ export function calculateRetirement(
     decoteQuarters,
     surcoteQuarters,
     surcoteRate,
+    surcote,
     proratisation,
+    pensionScales,
     basePensionMonthlyGrossBeforeMico,
     micoApplied,
+    micoProjected,
     micoComplementMonthly,
     basePensionMonthlyGrossBeforeBonus,
     baseChildBonusMonthly,
@@ -325,6 +325,7 @@ export function calculateRetirement(
     basePensionAnnualGross,
     basePensionMonthlyNet,
     agircTotalPoints: Number(agircTotalPoints.toFixed(2)),
+    agircPointsPending: agircCareer.pending,
     agircPointValue,
     agircAbattementCoeff,
     agircMonthlyGrossBeforeBonus,

@@ -1,3 +1,5 @@
+import type { getPensionScales } from '../constants/pensionScales';
+
 export type Currency = 'EUR' | 'FRF';
 
 export type Regime = 'CNAV' | 'MSA';
@@ -21,6 +23,7 @@ export interface CareerYear {
   validatedQuarters: number; // 0 to 4
   contributedQuarters: number; // 0 to 4 (cotisés ou réputés cotisés pour carrière longue)
   agircPoints: number;
+  agircPointsAtDeparture?: { date: string; points: number };
   agircLegacyRegime?: AgircLegacyRegime;
   eventType: EventType;
   samIncomeKind?: SamIncomeKind;
@@ -37,6 +40,7 @@ export interface LongCareerResult {
   minimumAgeMonths?: number;
   earliestAgeDate?: string;
   contributedQuarters?: number;
+  inputError?: string;
   possibleContributedQuarters?: number;
   requiredQuarters?: number;
   safeguardToVerify?: boolean;
@@ -102,6 +106,14 @@ export interface UserProfile {
   specialCircumstances?: SpecialCircumstances;
   allPensionsLiquidated?: boolean; // Toutes les pensions personnelles liquidées (condition MICO)
   otherPensionsMonthly?: number; // Autres pensions personnelles mensuelles brutes (plafond MICO)
+  surcoteConfirmed?: { departureDate: string; quarters: number };
+}
+
+export interface SurcoteAnalysis {
+  status: 'none' | 'pending' | 'confirmed';
+  maxQuarters: number;
+  quarters: number;
+  inputError?: string;
 }
 
 export type CerReductionBand = 'beforeLegalAge' | 'beforeFullRateAge';
@@ -183,6 +195,7 @@ export interface CalculationResult {
     formatted: string;
   };
   requiredQuarters: number;
+  prorationQuarters: number;
   totalValidatedQuarters: number;
   totalContributedQuarters: number;
   longCareer: LongCareerResult;
@@ -198,10 +211,13 @@ export interface CalculationResult {
   decoteQuarters: number;
   surcoteQuarters: number;
   surcoteRate: number;
-  proratisation: number; // MIN(validatedQuarters, requiredQuarters) / requiredQuarters
+  surcote: SurcoteAnalysis;
+  proratisation: number; // MIN(validatedQuarters, prorationQuarters) / prorationQuarters
+  pensionScales: ReturnType<typeof getPensionScales>;
   // Retraite de base
   basePensionMonthlyGrossBeforeMico: number;
   micoApplied: boolean;
+  micoProjected: boolean;
   micoComplementMonthly: number;
   basePensionMonthlyGrossBeforeBonus: number;
   baseChildBonusMonthly: number;
@@ -210,6 +226,7 @@ export interface CalculationResult {
   basePensionMonthlyNet: number;
   // Agirc-Arrco
   agircTotalPoints: number;
+  agircPointsPending: boolean;
   agircPointValue: number;
   agircAbattementCoeff: number;
   agircMonthlyGrossBeforeBonus: number;

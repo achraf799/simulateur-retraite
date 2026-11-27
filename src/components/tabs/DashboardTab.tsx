@@ -227,8 +227,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           badgeColor="blue"
           formulaBreakdown={`SAM (${result.sam.toLocaleString('fr-FR')} €) × ${
             result.liquidationRate * 100
-          } % × (${Math.min(result.totalValidatedQuarters, result.requiredQuarters)}/${
-            result.requiredQuarters
+          } % × (${Math.min(result.totalValidatedQuarters, result.prorationQuarters)}/${
+            result.prorationQuarters
           })${profile.childrenCount >= 3 ? ' + 10 % (enfants)' : ''}`}
           details={[
             {
@@ -250,8 +250,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             },
             {
               label: 'Fraction de proratisation',
-              value: `${Math.min(result.totalValidatedQuarters, result.requiredQuarters)} / ${
-                result.requiredQuarters
+              value: `${Math.min(result.totalValidatedQuarters, result.prorationQuarters)} / ${
+                result.prorationQuarters
               } (${(result.proratisation * 100).toFixed(1)} %)`,
             },
             {

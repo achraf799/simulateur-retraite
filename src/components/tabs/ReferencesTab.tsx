@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { REPERES_2026, GENERATION_SCALES } from '../../constants/parameters2026';
 import { PASS_HISTORY } from '../../constants/passHistory';
 import { getCnavCoeff } from '../../constants/cnavCoefficients';
+import { getPensionScales } from '../../constants/pensionScales';
 import { BookOpen, Scale, Landmark, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 
 export const ReferencesTab: React.FC = () => {
   const [showPassHistory, setShowPassHistory] = useState(false);
+  const { agircArrco } = getPensionScales('2026-11-01');
 
   return (
     <div className="space-y-6">
@@ -64,9 +66,9 @@ export const ReferencesTab: React.FC = () => {
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
             <div className="text-[11px] text-slate-500">Point Agirc-Arrco</div>
             <div className="text-sm font-extrabold text-indigo-700">
-              {REPERES_2026.valeurPointAgircArrco} €
+              {agircArrco.pointValue.toLocaleString('fr-FR', { minimumFractionDigits: 4 })} €
             </div>
-            <div className="text-[10px] text-slate-400">Valeur au 01/11/2024</div>
+            <div className="text-[10px] text-slate-400">Valeur au 01/11/2026</div>
           </div>
 
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
@@ -192,12 +194,12 @@ export const ReferencesTab: React.FC = () => {
           </div>
 
           <div className="p-3 bg-slate-900 text-tealbrand-300 font-mono text-xs rounded-lg">
-            Agirc-Arrco = Total points × Valeur point (1,4386 €) + Majoration (plafonnée)
+            Agirc-Arrco = Total des points × Valeur du point à la date de départ + Majoration plafonnée
           </div>
 
           <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-4">
             <li>
-              <strong>Majoration enfants Agirc-Arrco :</strong> +10 % dès 3 enfants élevés, plafonnée à <strong>2 367,48 €/an</strong> (au 01/11/2024), soit 197,29 €/mois.
+              Le plafond de la majoration enfants atteint <strong>{agircArrco.annualChildBonusCap.toLocaleString('fr-FR')} € par an</strong> au 1er novembre 2026.
             </li>
             <li>
               <strong>Prélèvements sociaux Agirc-Arrco :</strong> -10,1 % (CSG 8,3 % + CRDS 0,5 % + CASA 0,3 % + Cotisation Maladie 1,0 %).

@@ -1,8 +1,80 @@
 import { describe, it, expect } from 'vitest';
 import { calculateRetirement } from './retirementCalculator';
-import { SAKURA_PROFILE, SAKURA_CAREER, LFSS_2026_PROFILE, LFSS_2026_CAREER } from '../constants/scenarios';
+import { BLANK_PROFILE, SAKURA_PROFILE, SAKURA_CAREER, LFSS_2026_PROFILE, LFSS_2026_CAREER } from '../constants/scenarios';
 import { UserProfile, CareerYear } from '../types/retirement';
 import { REPERES_2026 } from '../constants/parameters2026';
+
+describe('Durée d’assurance des générations antérieures à 1961', () => {
+  it.each([
+    [1943, 160, 150],
+    [1944, 160, 152],
+    [1947, 160, 158],
+    [1948, 160, 160],
+    [1949, 161, 161],
+    [1950, 162, 162],
+    [1951, 163, 163],
+    [1952, 164, 164],
+    [1953, 165, 165],
+    [1955, 166, 166],
+    [1957, 166, 166],
+    [1958, 167, 167],
+    [1960, 167, 167],
+  ])('calcule une pension entière pour la génération %i avec la durée de référence atteinte', (year, required, reference) => {
+    const result = calculateRetirement({
+      ...BLANK_PROFILE,
+      birthDate: `${year}-01-01`,
+      desiredDepartureDate: '2025-01-01',
+      expressData: { totalQuarters: reference, contributedQuarters: reference, estimatedSam: 48000, agircPoints: 0 },
+    }, []);
+    expect(result.requiredQuarters).toBe(required);
+    expect(result.prorationQuarters).toBe(reference);
+    expect(result.basePensionMonthlyGross).toBe(2000);
+  });
+});
+
+describe('Barèmes à la date de départ', () => {
+  const profile: UserProfile = {
+    ...BLANK_PROFILE,
+    birthDate: '1960-01-01',
+    expressData: { totalQuarters: 167, contributedQuarters: 167, estimatedSam: 12000, agircPoints: 1000 },
+  };
+
+  it.each([
+    ['2024-10-01', 1.4159, 4129.71, 194.18],
+    ['2026-10-01', 1.4386, 4195.92, 197.29],
+    ['2026-11-01', 1.4587, 4254.54, 200.05],
+  ])('valorise les points et plafonne la majoration Agirc-Arrco au %s', (date, point, pension, bonus) => {
+    const result = calculateRetirement({
+      ...profile,
+      childrenCount: 3,
+      desiredDepartureDate: date,
+      expressData: { ...profile.expressData!, agircPoints: 35000 },
+    }, []);
+    expect(result.agircPointValue).toBe(point);
+    expect(result.agircMonthlyGrossBeforeBonus).toBe(pension);
+    expect(result.agircChildBonusCapped).toBe(true);
+    expect(result.agircChildBonusMonthly).toBe(bonus);
+  });
+
+  it('revalorise le MICO de base et majoré au 1er janvier 2026', () => {
+    const departing = { ...profile, desiredDepartureDate: '2026-01-01' };
+    expect(calculateRetirement(departing, []).basePensionMonthlyGross).toBe(903.93);
+    const withFewerContributedQuarters = { ...profile.expressData!, contributedQuarters: 119 };
+    expect(calculateRetirement({ ...departing, expressData: withFewerContributedQuarters }, [])
+      .basePensionMonthlyGross).toBe(756.29);
+  });
+
+  it.each([
+    ['2024-10-01', 1367.51],
+    ['2024-11-01', 1394.44],
+    ['2026-05-01', 1410.89],
+    ['2026-06-01', 1444.89],
+  ])('écrête le MICO au plafond de pensions applicable au %s', (date, cap) => {
+    const result = calculateRetirement({ ...profile, desiredDepartureDate: date, otherPensionsMonthly: 500 }, []);
+    expect(result.micoApplied).toBe(true);
+    expect(result.totalMonthlyGross + 500).toBeCloseTo(cap, 2);
+  });
+});
 
 describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', () => {
   describe('1. Validation exacte du Cas Sakura (Cas Référence Jury)', () => {
@@ -54,6 +126,36 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
       expect(result.agircMonthlyNet).toBe(1087.86);
     });
 
+    it('exclut les points des années à compter d’un départ au premier janvier', () => {
+      const lastYear = SAKURA_CAREER[SAKURA_CAREER.length - 1];
+      const future = [2025, 2026].map((year) => ({ ...lastYear, year, agircPoints: 1000 }));
+      const departure = calculateRetirement(SAKURA_PROFILE, [...SAKURA_CAREER, ...future]);
+      expect(departure.agircTotalPoints).toBe(9274.16);
+      expect(departure.agircMonthlyGross).toBe(1209);
+    });
+
+    it('retient uniquement les points de l’année de départ confirmés pour la date simulée', () => {
+      const profile: UserProfile = {
+        ...SAKURA_PROFILE,
+        desiredDepartureDate: '2025-07-01',
+        cerResumptionDate: '2025-08-01',
+        specialCircumstances: { ...SAKURA_PROFILE.specialCircumstances!, longCareerConfirmedQuarters: 171 },
+      };
+      const annual: CareerYear = { ...SAKURA_CAREER[SAKURA_CAREER.length - 1], year: 2025, agircPoints: 1000 };
+      const pending = calculateRetirement(profile, [...SAKURA_CAREER, annual]);
+      expect(pending.agircPointsPending).toBe(true);
+      expect(pending.agircTotalPoints).toBe(9274.16);
+      expect(pending.cerAnalysis.unavailable).toBe(true);
+
+      const confirmed: CareerYear = { ...annual, agircPointsAtDeparture: { date: '2025-07-01', points: 100 } };
+      const retirement = calculateRetirement(profile, [...SAKURA_CAREER, confirmed]);
+      expect(retirement.agircPointsPending).toBe(false);
+      expect(retirement.agircTotalPoints).toBe(9374.16);
+      expect(retirement.agircMonthlyGross).toBe(1222.18);
+      expect(calculateRetirement({ ...profile, desiredDepartureDate: '2025-08-01' }, [...SAKURA_CAREER, confirmed])
+        .agircPointsPending).toBe(true);
+    });
+
     it('calcule le total brut, le net et le taux de remplacement de Sakura', () => {
       expect(result.totalMonthlyGross).toBe(3084.06);
       expect(result.totalMonthlyNet).toBe(2792.29);
@@ -70,6 +172,23 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
       expect(cer.paidComplementaryMonthly).toBeUndefined();
       expect(cer.generatesNewRights).toBe(false);
     });
+  });
+
+  it.each([false, true])('bloque une durée Express incohérente fournie par confirmation manuelle (%s)', (manual) => {
+    const profile: UserProfile = {
+      ...SAKURA_PROFILE,
+      careerMode: 'express',
+      expressData: { totalQuarters: 100, contributedQuarters: manual ? 100 : 170, estimatedSam: 35000, agircPoints: 5000 },
+      specialCircumstances: {
+        ...SAKURA_PROFILE.specialCircumstances!,
+        longCareerConfirmedQuarters: manual ? 170 : undefined,
+      },
+    };
+    const result = calculateRetirement(profile, []);
+    expect(result.longCareer.status).toBe('unknown');
+    expect(result.longCareer.inputError).toBeTruthy();
+    expect(result.totalMonthlyGross).toBe(0);
+    expect(result.cerAnalysis.unavailable).toBe(true);
   });
 
   it('distingue les anciennes caisses connues, y compris pour des points acquis la même année', () => {
@@ -140,16 +259,15 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
       expect(res.liquidationRate).toBe(0.45);
     });
 
-    it('doit appliquer une surcote de +1,25% par trimestre après âge légal et taux plein', () => {
+    it('contrôle la surcote selon les années cotisées, puis utilise les trimestres confirmés', () => {
       const profileSurcote: UserProfile = {
         ...SAKURA_PROFILE,
         birthDate: '1960-01-01', // Âge légal 62 ans (167 trimestres requis)
-        desiredDepartureDate: '2023-01-01', // 63 ans (4 trimestres après âge légal)
+        desiredDepartureDate: '2023-01-01', // 3 trimestres possibles après le trimestre de l’âge légal.
         childrenCount: 0,
       };
-      // Carrière avec 171 trimestres cotisés (4 au-delà des 167 requis)
       const careerSurcote: CareerYear[] = [];
-      for (let y = 1980; y <= 2022; y++) {
+      for (let y = 1979; y <= 2022; y++) {
         careerSurcote.push({
           year: y,
           currency: 'EUR',
@@ -167,11 +285,17 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
         });
       }
 
-      const res = calculateRetirement(profileSurcote, careerSurcote);
-      expect(res.eligibilityStatus).toBe('eligible_taux_plein');
-      expect(res.surcoteQuarters).toBe(4);
-      // Surcote : 4 * 1.25% = +5.0%
-      expect(res.surcoteRate).toBe(0.05);
+      const inactive = calculateRetirement(profileSurcote, careerSurcote.filter(({ year }) => year < 2022));
+      expect(inactive.eligibilityStatus).toBe('eligible_taux_plein');
+      expect(inactive.surcoteQuarters).toBe(0);
+      expect(inactive.surcote.status).toBe('none');
+
+      const pending = calculateRetirement(profileSurcote, careerSurcote);
+      expect(pending.surcote).toMatchObject({ status: 'pending', maxQuarters: 3 });
+      expect(pending.surcoteQuarters).toBe(0);
+      const confirmed = { ...profileSurcote, surcoteConfirmed: { departureDate: '2023-01-01', quarters: 2 } };
+      expect(calculateRetirement(confirmed, careerSurcote).surcoteRate).toBe(0.025);
+      expect(calculateRetirement({ ...confirmed, desiredDepartureDate: '2023-02-01' }, careerSurcote).surcote.status).toBe('pending');
     });
   });
 
@@ -181,6 +305,7 @@ describe('Moteur de calcul Retraite - Tests Unitaires Droit Social Français', (
         ...SAKURA_PROFILE,
         birthDate: '1960-01-01', // 65 ans au 01/01/2025 (>= 62 ans légal)
         desiredDepartureDate: '2025-01-01',
+        surcoteConfirmed: { departureDate: '2025-01-01', quarters: 0 },
         cerEnabled: true,
         cerResumptionDate: '2025-08-01', // > 6 mois
         cerFormerEmployer: false,

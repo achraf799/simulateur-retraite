@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SAKURA_CAREER, SAKURA_PROFILE } from '../constants/scenarios';
+import { BLANK_PROFILE, SAKURA_CAREER, SAKURA_PROFILE } from '../constants/scenarios';
 import type { UserProfile } from '../types/retirement';
 import { calculateRetirement } from './retirementCalculator';
 
@@ -47,6 +47,26 @@ describe('Cumul emploi-retraite', () => {
     expect(cer.regime).toBe(regime);
   });
 
+  it.each(['2026-12-01', '2027-01-01'])('laisse le cumul indéterminé si les montants de la pension du %s sont inconnus et le départ simulé est refusé', (first) => {
+    const cer = simulateCer({
+      ...BLANK_PROFILE,
+      birthDate: '1968-01-01',
+      desiredDepartureDate: '2027-02-01',
+      cerEnabled: true,
+      cerFirstBasePensionDate: first,
+      cerResumptionDate: '2027-03-01',
+      cerAllPensionsLiquidated: true,
+      cerNewGrossMonthlySalary: 2000,
+      cerIncomeByPeriod: { beforeLegalAge: 5000 },
+    });
+    expect(cer.unavailable).toBe(true);
+    expect(cer.alertMessage).toMatch(/pensions déjà liquidées/);
+    expect(cer.paidBaseMonthly).toBeUndefined();
+    expect(cer.paidComplementaryMonthly).toBeUndefined();
+    expect(cer.totalCerRevenue).toBeUndefined();
+    expect(cer.annualReduction).toBeUndefined();
+  });
+
   it('réduit euro pour euro avant l’âge légal, sans nouveaux droits', () => {
     const cer = simulateCer({
       ...earlyRetirement2027,
@@ -79,6 +99,7 @@ describe('Cumul emploi-retraite', () => {
   it.each([undefined, false, true])('conditionne le cumul intégral à la liquidation exigible (%s)', (liquidated) => {
     const cer = simulateCer({
       birthDate: '1959-01-01',
+      surcoteConfirmed: { departureDate: '2027-01-01', quarters: 0 },
       cerResumptionDate: '2027-03-01',
       cerAllPensionsLiquidated: liquidated,
     });
@@ -88,9 +109,28 @@ describe('Cumul emploi-retraite', () => {
     expect(cer.annualReduction).toBe(liquidated ? 0 : undefined);
   });
 
+  it.each([
+    ['2027-03-31', undefined, 'YELLOW'],
+    ['2027-04-01', '2027-04-01', 'RED'],
+  ])('annonce une suspension en 2027 uniquement si la date tombe dans la période finissant le %s', (end, start, alertLevel) => {
+    const cer = simulateCer({
+      birthDate: '1959-01-01',
+      surcoteConfirmed: { departureDate: '2027-01-01', quarters: 0 },
+      cerResumptionDate: '2027-03-12',
+      cerActivityEndDate: end,
+      cerAllPensionsLiquidated: false,
+    });
+    expect(cer.baseSuspensionStartDate).toBe(start);
+    expect(cer.suspensionApplies).toBe(start !== undefined);
+    expect(cer.alertLevel).toBe(alertLevel);
+    expect(cer.annualReduction).toBeUndefined();
+    if (start === undefined) expect(cer.alertMessage).not.toMatch(/suspendue/i);
+  });
+
   it('clôt le palier précédent le mois des 67 ans', () => {
     const cer = simulateCer({
       birthDate: '1960-06-15',
+      surcoteConfirmed: { departureDate: '2027-01-01', quarters: 0 },
       cerIncomeByPeriod: { beforeFullRateAge: 10000 },
     });
     expect(cer.periods?.[0]?.endDate).toBe('2027-06-30');

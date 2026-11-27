@@ -44,6 +44,10 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
   const cer = result.cerAnalysis;
   const sam = result.samAnalysis;
   const samAvailable = sam.source !== 'unavailable';
+  const pointsPending = result.agircPointsPending;
+  const { agircArrco } = result.pensionScales;
+  const agircPointValue = result.agircPointValue.toLocaleString('fr-FR', { minimumFractionDigits: 4 });
+  const pensionUnavailable = result.longCareer.inputError ?? 'Aucune pension liquidable à la date demandée.';
 
   const showCerResources = profile.cerEnabled && cer.regime === 'before2027' && !cer.unavailable;
   const chartData = showCerResources ? [
@@ -69,7 +73,12 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
   const formatPercent = (rate: number) =>
     rate.toLocaleString('fr-FR', { style: 'percent', maximumFractionDigits: 2 });
   const replacementRate = formatPercent(result.grossReplacementRate / 100);
-  const pensionStatus = result.eligibilityStatus === 'eligible_taux_plein'
+  const surcoteNote = result.surcote.status === 'pending'
+    ? 'Estimation hors surcote. Confirmez les trimestres dans « Départ & CER ».'
+    : result.surcoteQuarters > 0
+      ? `Surcote de ${formatPercent(result.surcoteRate)} sur la retraite de base pour ${result.surcoteQuarters} trimestres confirmés.`
+      : undefined;
+  const pensionStatus = result.longCareer.inputError ? 'Durée à corriger' : result.eligibilityStatus === 'eligible_taux_plein'
     ? `${result.isCarriereLongue ? 'Carrière longue à taux plein' : 'Taux plein'} (${formatPercent(result.liquidationRate)})`
     : result.eligibilityStatus === 'eligible_decote' ? `Départ avec décote (${result.decoteQuarters} trim.)` : 'Inéligible au départ';
   const cerResources = cer.totalCerRevenue === undefined
@@ -162,13 +171,17 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
               Situation à la date demandée ({formatDate(profile.desiredDepartureDate)})
             </span>
             <div className="text-2xl sm:text-3xl font-black text-rose-900 tracking-tight">
-              Aucune pension liquidable à la date demandée
+              {result.longCareer.inputError ? 'Calcul suspendu' : 'Aucune pension liquidable à la date demandée'}
             </div>
             <p className="text-xs text-rose-800">
-              Les conditions d’âge légal ou de départ anticipé pour carrière longue ne sont pas remplies au{' '}
-              {formatDate(profile.desiredDepartureDate)}. Aucune pension brute, nette ou taux de remplacement n’est liquidable à cette date.
+              {result.longCareer.inputError
+                ?? `Les conditions d’âge légal ou de départ anticipé pour carrière longue ne sont pas remplies au ${formatDate(profile.desiredDepartureDate)}.`}
             </p>
           </div>
+        ) : pointsPending ? (
+          <p role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+            Confirmez les points Agirc-Arrco acquis avant la date de départ dans « Votre carrière » pour estimer la pension totale.
+          </p>
         ) : (
           samAvailable && (
             <div className="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-7 shadow-xs">
@@ -192,6 +205,9 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                     })}{' '}
                     € net estimé avant impôt sur le revenu
                   </div>
+                  {result.surcote.status === 'pending' && (
+                    <p role="status" className="mt-2 text-xs font-semibold text-amber-800">{surcoteNote}</p>
+                  )}
                 </div>
 
                 {profile.lastGrossMonthlySalary > 0 && (
@@ -235,7 +251,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
 
               {isIneligible ? (
                 <p className="text-sm font-semibold text-rose-700">
-                  Aucune pension liquidable à la date demandée.
+                  {pensionUnavailable}
                 </p>
               ) : samAvailable ? (
                 <>
@@ -249,6 +265,13 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                     <div className="mt-1.5 text-[11px] text-indigo-800">
                       Base avant MICO : {formatEuros(result.basePensionMonthlyGrossBeforeMico)} • Complément MICO : +{formatEuros(result.micoComplementMonthly)}
                     </div>
+                  )}
+                  {result.micoProjected && (
+                    <p className="mt-1 text-xs text-amber-900">Projection du minimum contributif selon le barème connu.</p>
+                  )}
+                  {surcoteNote && <p className="mt-1 text-xs text-slate-600">{surcoteNote}</p>}
+                  {pointsPending && result.eligibilityStatus === 'eligible_taux_plein' && (
+                    <p className="mt-1 text-xs text-slate-600">Montant brut hors éventuel minimum contributif.</p>
                   )}
                 </>
               ) : (
@@ -293,8 +316,10 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
 
               {isIneligible ? (
                 <p className="text-sm font-semibold text-rose-700">
-                  Aucune pension liquidable à la date demandée.
+                  {pensionUnavailable}
                 </p>
+              ) : pointsPending ? (
+                <p className="text-sm text-amber-900">Points de l’année du départ à confirmer.</p>
               ) : (
                 <>
                   <div className="text-2xl font-black text-slate-900 tracking-tight">
@@ -314,6 +339,9 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                   {result.agircChildBonusBands.length > 0 && (
                     <div className="mt-3 text-xs text-slate-600">
                       <p className="font-semibold">Majoration pour enfants nés ou élevés · {formatEuros(result.agircChildBonusMonthly)} brut / mois</p>
+                      {result.agircChildBonusCapped && (
+                        <p>Plafond annuel de {formatEuros(agircArrco.annualChildBonusCap)}.</p>
+                      )}
                       <ul className="mt-1 list-disc space-y-0.5 pl-4">
                         {result.agircChildBonusBands.map((band) => (
                           <li key={`${band.label}:${band.assumed}`}>
@@ -332,9 +360,13 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
             <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex justify-between">
               <span>Points acquis :</span>
               <strong className="text-slate-800">
-                {result.agircTotalPoints.toLocaleString('fr-FR')} pts (valeur {result.agircPointValue.toLocaleString('fr-FR')} €)
+                {result.agircTotalPoints.toLocaleString('fr-FR')} pts (valeur {agircPointValue} €)
               </strong>
             </div>
+            <p className={`mt-1 text-xs ${agircArrco.projected ? 'text-amber-900' : 'text-slate-500'}`}>
+              {agircArrco.projected ? 'Projection selon le barème Agirc-Arrco du' : 'Barème Agirc-Arrco du'}{' '}
+              {formatDate(agircArrco.effectiveFrom)}.
+            </p>
           </div>
         </div>
       </div>
@@ -420,7 +452,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
         </section>
       )}
 
-      {!isIneligible && samAvailable && (!showCerResources || cer.totalCerRevenue !== undefined) && (
+      {!isIneligible && !pointsPending && samAvailable && (!showCerResources || cer.totalCerRevenue !== undefined) && (
         <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-4">
           <div>
             <h3 className="font-bold text-sm text-slate-900">
@@ -475,6 +507,9 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 {result.totalValidatedQuarters} trimestres validés pour {result.requiredQuarters} requis.
                 {profile.careerMode !== 'express' && ` Le relevé compte ${result.totalContributedQuarters} trimestres cotisés par l’activité.`}
               </p>
+              {result.prorationQuarters !== result.requiredQuarters && (
+                <p>La proratisation de la retraite de base utilise une durée de référence de {result.prorationQuarters} trimestres.</p>
+              )}
               <LongCareerSummary result={result.longCareer} />
             </div>
 
@@ -496,7 +531,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
             <div className="space-y-3 pt-4">
               <h3 className="font-bold text-slate-900">Pensions mensuelles</h3>
               {isIneligible ? (
-                <p>Aucune pension liquidable à la date demandée.</p>
+                <p>{pensionUnavailable}</p>
               ) : (
                 <>
                   <dl className="grid gap-3 sm:grid-cols-2">
@@ -506,6 +541,10 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                         <dd>
                           <strong>{formatEuros(result.basePensionMonthlyGross)} brut</strong> · {formatEuros(result.basePensionMonthlyNet)} net estimé.
                           <p className="mt-1 text-xs">Taux de liquidation · {formatPercent(result.liquidationRate)}. Proratisation · {formatPercent(result.proratisation)}.</p>
+                          {surcoteNote && <p className="text-xs">{surcoteNote}</p>}
+                          {pointsPending && result.eligibilityStatus === 'eligible_taux_plein' && (
+                            <p className="text-xs">Montant brut hors éventuel minimum contributif.</p>
+                          )}
                           {result.micoApplied && <p className="text-xs">Complément du minimum contributif · {formatEuros(result.micoComplementMonthly)}.</p>}
                           {result.baseChildBonusMonthly > 0 && <p className="text-xs">Majoration enfants · {formatEuros(result.baseChildBonusMonthly)}.</p>}
                         </dd>
@@ -513,22 +552,26 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                     </div>
                     <div className="space-y-1 rounded-xl bg-slate-50 p-3">
                       <dt className="font-semibold text-slate-900">Retraite Agirc-Arrco</dt>
-                      <dd>
-                        <strong>{formatEuros(result.agircMonthlyGross)} brut</strong> · {formatEuros(result.agircMonthlyNet)} net estimé.
-                        <p className="mt-1 text-xs">
-                          {result.agircTotalPoints.toLocaleString('fr-FR')} points à {result.agircPointValue.toLocaleString('fr-FR')} €.
-                          {result.agircAbattementCoeff < 1 && ` Coefficient de minoration · ${result.agircAbattementCoeff.toLocaleString('fr-FR')}.`}
-                        </p>
-                        {result.agircChildBonusBands.length > 0 && (
-                          <p className="text-xs">
-                            Majoration enfants · {formatEuros(result.agircChildBonusMonthly)}{result.agircChildBonusCapped ? ' (plafonnée)' : ''}.
-                            {result.agircChildBonusBands.some((band) => band.assumed) && ' Le détail des hypothèses par période figure dans la carte Agirc-Arrco.'}
+                      {pointsPending ? (
+                        <dd>Points de l’année du départ à confirmer.</dd>
+                      ) : (
+                        <dd>
+                          <strong>{formatEuros(result.agircMonthlyGross)} brut</strong> · {formatEuros(result.agircMonthlyNet)} net estimé.
+                          <p className="mt-1 text-xs">
+                            {result.agircTotalPoints.toLocaleString('fr-FR')} points à {agircPointValue} €.
+                            {result.agircAbattementCoeff < 1 && ` Coefficient de minoration · ${result.agircAbattementCoeff.toLocaleString('fr-FR')}.`}
                           </p>
-                        )}
-                      </dd>
+                          {result.agircChildBonusBands.length > 0 && (
+                            <p className="text-xs">
+                              Majoration enfants · {formatEuros(result.agircChildBonusMonthly)}{result.agircChildBonusCapped ? ' (plafonnée)' : ''}.
+                              {result.agircChildBonusBands.some((band) => band.assumed) && ' Le détail des hypothèses par période figure dans la carte Agirc-Arrco.'}
+                            </p>
+                          )}
+                        </dd>
+                      )}
                     </div>
                   </dl>
-                  {samAvailable && (
+                  {samAvailable && !pointsPending && (
                     <div className="space-y-1">
                       <p><strong>Total mensuel · {formatEuros(result.totalMonthlyGross)} brut</strong> · {formatEuros(result.totalMonthlyNet)} net estimé avant impôt.</p>
                       <p className="text-xs">Le total brut est arrondi au centime après addition des deux pensions.</p>
@@ -617,7 +660,7 @@ export const Step5Bilan: React.FC<Step5BilanProps> = ({
                 Retraite mensuelle brute = (points × valeur du point × coefficient de minoration + majoration annuelle) ÷ 12
               </div>
               <p className="text-slate-600 text-[11px]">
-                {isIneligible ? 'Aucune pension complémentaire liquidable à la date demandée.' : (
+                {isIneligible ? pensionUnavailable : pointsPending ? 'Points de l’année du départ à confirmer.' : (
                   <>
                     La majoration annuelle est calculée en appliquant le taux de chaque période aux points correspondants.
                     Le résultat de cette simulation est de <strong>{formatEuros(result.agircMonthlyGross)} brut par mois</strong>,

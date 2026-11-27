@@ -17,11 +17,6 @@ export const REPERES_2026 = {
   salaireValidationTrimestre2026: 1803, // 150 x SMIC horaire
   salaireValidation4Trimestres2026: 7212, // 600 x SMIC horaire
 
-  // Agirc-Arrco
-  valeurPointAgircArrco: 1.4386, // au 01/11/2024
-  plafondMajorationEnfantsAgircAnnuel: 2367.48, // Plafond +10% enfants Agirc-Arrco
-  plafondMajorationEnfantsAgircMensuel: 197.29, // 2367.48 / 12
-
   // Nouveaux droits CER Intégral
   plafondNouveauxDroitsCerPassRatio: 0.05, // 5% du PASS
   plafondNouveauxDroitsCerAnnuel: 2403, // 0.05 * 48060 €
@@ -35,12 +30,35 @@ export const REPERES_2026 = {
   // Âge d'annulation de la décote (taux plein automatique)
   ageTauxPleinAutomatiqueAnnees: 67,
 
-  // Minimum contributif (MICO) 2025 (Circulaire CNAV 2024/40 du 23/12/2024)
-  micoBaseMensuel2025: 747.57,
-  micoMajoreMensuel2025: 893.65,
-  micoPlafondPensionsMensuel2025: 1394.86,
+  // Minimum contributif majoré
   micoSeuilTrimestresCotises: 120,
 };
+
+// Assurance retraite, Recueil statistique du régime général 2023, p. 159-160.
+// Les seuils sont classés de l’année de naissance la plus récente à la plus ancienne.
+const HISTORICAL_INSURANCE_DURATIONS = [
+  { fromBirthYear: 1958, quarters: 167 },
+  { fromBirthYear: 1955, quarters: 166 },
+  { fromBirthYear: 1953, quarters: 165 },
+  { fromBirthYear: 1952, quarters: 164 },
+  { fromBirthYear: 1951, quarters: 163 },
+  { fromBirthYear: 1950, quarters: 162 },
+  { fromBirthYear: 1949, quarters: 161 },
+];
+
+// Loi n° 2003-775, article 22 III, pour les pensions prenant effet après 2003.
+const PRORATION_BEFORE_1948: Partial<Record<number, number>> = {
+  1944: 152,
+  1945: 154,
+  1946: 156,
+  1947: 158,
+};
+
+export function getHistoricalInsuranceDurations(birthYear: number) {
+  const requiredQuarters = HISTORICAL_INSURANCE_DURATIONS.find(({ fromBirthYear }) => birthYear >= fromBirthYear)?.quarters ?? 160;
+  const prorationQuarters = birthYear < 1948 ? (PRORATION_BEFORE_1948[birthYear] ?? 150) : requiredQuarters;
+  return { requiredQuarters, prorationQuarters };
+}
 
 export interface GenerationScale {
   birthYear: number;

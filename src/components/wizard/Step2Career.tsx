@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AgircLegacyRegime, CalculationResult, CareerYear, UserProfile, Currency, LongCareerResult, SamAnalysis, SamIncomeKind, SamYear } from '../../types/retirement';
 import { samIncomeKind } from '../../engine/annualSalary';
+import { selectAgircRights } from '../../engine/agircArrco';
 import { SamParametersNote } from '../common/SamParametersNote';
 import { getPassForYear, FRF_TO_EUR_RATE } from '../../constants/passHistory';
 import { getCnavCoeff } from '../../constants/cnavCoefficients';
@@ -35,7 +36,7 @@ interface Step2CareerProps {
   onChangeProfile: (updated: Partial<UserProfile>) => void;
   onChangeCareer: (updated: CareerYear[]) => void;
   onExportCsv: () => void;
-  onImportCsv: (csvText: string) => void;
+  onImportCsv: (csvText: string) => string[];
   samAnalysis: SamAnalysis;
   longCareer: LongCareerResult;
   requiredQuarters: number;
@@ -65,15 +66,20 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   const hasScaleDates = validDate(profile.birthDate) && validDate(profile.desiredDepartureDate);
   const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
   const [showDetailedTable, setShowDetailedTable] = useState<boolean>(true);
+  const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const csvReader = React.useRef<FileReader | null>(null);
+  React.useEffect(() => () => csvReader.current?.abort(), [career, isExpress]);
   const recordedYears = new Set(career.map(({ year }) => year)).size;
+  const agircCareer = selectAgircRights(career, profile.desiredDepartureDate);
+  const totalPoints = agircCareer.rights.reduce((sum, row) => sum + row.agircPoints, 0);
 
   // Valeurs par défaut du mode express si non définies
   const expressData = profile.expressData || {
     totalQuarters: totalValidated || 170,
     contributedQuarters: totalContributed || 170,
     estimatedSam: sam || 40000,
-    agircPoints: career.reduce((s, r) => s + r.agircPoints, 0) || 9000,
+    agircPoints: career.length ? totalPoints : 9000,
   };
 
   const handleModeSwitch = (mode: 'detailed' | 'express') => {
@@ -88,9 +94,9 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
         totalQuarters: totalValidated,
         contributedQuarters: longCareer.contributedQuarters ?? totalContributed,
         estimatedSam: sam || expressData.estimatedSam,
-        agircPoints: career.reduce((s, r) => s + r.agircPoints, 0),
-        agircPointsBefore1999: career.reduce((sum, row) => row.year < 1999 ? sum + row.agircPoints : sum, 0) || undefined,
-        agircPoints1999To2011: career.reduce((sum, row) => row.year >= 1999 && row.year < 2012 ? sum + row.agircPoints : sum, 0) || undefined,
+        agircPoints: totalPoints,
+        agircPointsBefore1999: agircCareer.rights.reduce((sum, row) => row.year < 1999 ? sum + row.agircPoints : sum, 0) || undefined,
+        agircPoints1999To2011: agircCareer.rights.reduce((sum, row) => row.year >= 1999 && row.year < 2012 ? sum + row.agircPoints : sum, 0) || undefined,
       },
     });
   };
@@ -110,6 +116,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   const updateCareerRow = (index: number, changes: Partial<CareerYear>) => {
     const nextCareer = [...career];
     const currentRow = { ...nextCareer[index], ...changes };
+    if (currentRow.year !== nextCareer[index].year) currentRow.agircPointsAtDeparture = undefined;
 
     const effectiveYear = currentRow.year || 2000;
     const grossIncomeEur =
@@ -184,16 +191,17 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    csvReader.current?.abort();
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      if (text) onImportCsv(text);
+    csvReader.current = reader;
+    setCsvErrors([]);
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setCsvErrors(onImportCsv(reader.result));
     };
+    reader.onerror = () => setCsvErrors(['Impossible de lire le fichier sélectionné.']);
     reader.readAsText(file);
     e.target.value = '';
   };
-
-  const totalPoints = career.reduce((s, r) => s + r.agircPoints, 0);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -293,6 +301,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               <input
                 id="express-validated-quarters"
                 aria-describedby="express-required-quarters"
+                aria-invalid={Boolean(longCareer.inputError)}
                 type="number"
                 min="0"
                 max="200"
@@ -325,7 +334,8 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               <input
                 type="number"
                 min="0"
-                max="200"
+                max={expressData.totalQuarters}
+                aria-invalid={Boolean(longCareer.inputError)}
                 value={expressData.contributedQuarters}
                 onChange={(e) =>
                   handleUpdateExpress(
@@ -336,7 +346,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 className="w-full px-3.5 py-2.5 text-base font-bold text-tealbrand-800 rounded-xl border border-slate-300 focus:border-tealbrand-500 focus:ring-4 focus:ring-tealbrand-50 focus:outline-none font-mono"
               />
               <p className="text-[11px] text-slate-400">
-                Généralement égal ou inférieur aux trimestres validés
+                Le total cotisé ou réputé cotisé doit être compris dans le total validé.
               </p>
             </div>
 
@@ -379,7 +389,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 </label>
                 <FormulaTooltip
                   title="Points Agirc-Arrco"
-                  formula="Total points × Valeur du point (1,4386 €)"
+                  formula="Total des points × Valeur du point à la date de départ"
                   explanation="Nombre de points inscrits sur votre relevé de situation individuelle (RIS)."
                   articleCss="Accord ANI Agirc-Arrco"
                 />
@@ -423,11 +433,18 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                 })}
               </div>
               <p className="text-[11px] text-slate-600">
-                Ventilation facultative. Les points antérieurs à 2012 sont supposés Arrco.
+                Saisissez le total des points acquis avant la date de départ. La ventilation est facultative.
+                Les points antérieurs à 2012 sont supposés Arrco.
                 Le solde est traité comme acquis depuis 2012, à 10 % dès trois enfants nés ou élevés.
               </p>
+              {agircCareer.pending && expressData.agircPoints === totalPoints && (
+                <p className="text-xs font-semibold text-amber-800">
+                  Le total repris du relevé omet les points de l’année de départ à confirmer. Complétez-le si vous disposez du total à la date simulée.
+                </p>
+              )}
             </div>
           </div>
+          {longCareer.inputError && <p role="alert" className="text-sm text-rose-800">{longCareer.inputError}</p>}
         </div>
       )}
 
@@ -445,9 +462,14 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               </div>
               <div className="text-xs text-slate-600 mt-1">
                 {totalContributed} trimestres cotisés par l’activité •{' '}
-                {totalPoints.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts Agirc-Arrco •{' '}
+                {totalPoints.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pts Agirc-Arrco retenus •{' '}
                 SAM · <strong>{samAnalysis.source === 'unavailable' ? 'indisponible' : euro.format(sam)}</strong>
               </div>
+              {agircCareer.pending && (
+                <p role="status" className="mt-1 text-xs font-semibold text-amber-800">
+                  Confirmez les points acquis avant votre départ pour l’année {liquidationYear}.
+                </p>
+              )}
               {longCareer.possibleContributedQuarters !== undefined && (
                 <p className="mt-1 text-xs text-slate-600">
                   Carrière longue · {longCareer.contributedQuarters} trimestres retenus sur {longCareer.requiredQuarters} requis,
@@ -505,6 +527,15 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               />
             </div>
           </div>
+
+          {csvErrors.length > 0 && (
+            <div role="alert" className="rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-900">
+              <p className="font-semibold">Import refusé. Le relevé actuel est conservé.</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {csvErrors.map((error) => <li key={error}>{error}</li>)}
+              </ul>
+            </div>
+          )}
 
           <SamParametersNote analysis={samAnalysis} />
 
@@ -729,6 +760,7 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                                 type="number"
                                 step="0.01"
                                 min="0"
+                                aria-label={`Points annuels Agirc-Arrco en ${row.year}`}
                                 value={row.agircPoints}
                                 onChange={(e) =>
                                   updateCareerRow(idx, {
@@ -737,6 +769,24 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
                                 }
                                 className="w-16 text-right text-[11px] bg-white border border-slate-200 rounded px-1 py-0.5"
                               />
+                              {row.year === liquidationYear && !profile.desiredDepartureDate.endsWith('-01-01') && (
+                                <label className="mt-1 block text-left font-sans text-[11px] text-slate-600">
+                                  Points acquis avant le départ
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={row.agircPointsAtDeparture?.date === profile.desiredDepartureDate ? row.agircPointsAtDeparture.points : ''}
+                                    onChange={(event) => updateCareerRow(idx, {
+                                      agircPointsAtDeparture: event.target.value === '' ? undefined : {
+                                        date: profile.desiredDepartureDate,
+                                        points: Math.max(0, event.target.valueAsNumber),
+                                      },
+                                    })}
+                                    className="mt-0.5 w-full rounded border border-slate-200 px-1 py-0.5"
+                                  />
+                                </label>
+                              )}
                               {row.year < 2012 && (
                                 <select
                                   aria-label={`Ancien régime Agirc-Arrco en ${row.year}`}

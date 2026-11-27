@@ -54,6 +54,7 @@ export const Step4DepartureAndCer: React.FC<Step4DepartureAndCerProps> = ({
   const cerYear = (profile.cerResumptionDate || departureDate).slice(0, 4);
 
   const cer = calculationResult.cerAnalysis;
+  const surcote = calculationResult.surcote;
   const isNewCer = cer.regime === 'from2027';
   const inputClass = 'mt-1 block w-full rounded-lg border-2 border-slate-200 px-3 py-2 text-sm';
   const periodDate = (date: string) => date.split('-').reverse().join('/');
@@ -138,6 +139,37 @@ export const Step4DepartureAndCer: React.FC<Step4DepartureAndCerProps> = ({
             </div>
           </div>
         </div>
+
+        {(surcote.maxQuarters > 0 || surcote.inputError) && (
+          <section className="space-y-2 border-t border-slate-100 pt-4">
+            <label htmlFor="surcote-confirmed" className="block text-sm font-semibold text-slate-900">
+              Trimestres de surcote confirmés
+            </label>
+            <input
+              id="surcote-confirmed"
+              type="number"
+              min={0}
+              max={surcote.maxQuarters}
+              step={1}
+              aria-describedby="surcote-help"
+              aria-invalid={Boolean(surcote.inputError)}
+              value={profile.surcoteConfirmed?.departureDate === departureDate ? profile.surcoteConfirmed.quarters : ''}
+              onChange={(event) => onChangeProfile({
+                surcoteConfirmed: event.target.value === '' ? undefined : {
+                  departureDate,
+                  quarters: event.target.valueAsNumber,
+                },
+              })}
+              className={inputClass + ' max-w-32'}
+            />
+            <p id="surcote-help" className="text-xs text-slate-600">
+              Comptez les trimestres civils complets cotisés à partir du trimestre suivant l’âge légal
+              et après avoir atteint la durée requise. La période simulée en permet au plus {surcote.maxQuarters}.
+              Saisissez 0 si vous confirmez l’absence de surcote.
+            </p>
+            {surcote.inputError && <p role="alert" className="text-sm text-rose-700">{surcote.inputError}</p>}
+          </section>
+        )}
 
         {/* Dernier salaire mensuel brut */}
         <div className="pt-4 border-t border-slate-100">
