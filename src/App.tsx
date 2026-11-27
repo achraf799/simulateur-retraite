@@ -16,7 +16,7 @@ import { Step2Career } from './components/wizard/Step2Career';
 import { Step3SpecialCases } from './components/wizard/Step3SpecialCases';
 import { Step4DepartureAndCer } from './components/wizard/Step4DepartureAndCer';
 import { Step5Bilan } from './components/wizard/Step5Bilan';
-import { exportCareerToCsv, importCareerFromCsv } from './utils/csvHelper';
+import { CareerCsvError, exportCareerToCsv, importCareerFromCsv } from './utils/csvHelper';
 
 function careerQuartersChanged(career: CareerYear[], updated: CareerYear[], departure: string): boolean {
   const [year, month] = departure.split('-').map(Number);
@@ -117,19 +117,13 @@ export const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const handleImportCsv = (csvText: string) => {
+  const handleImportCsv = (csvText: string): string[] => {
     try {
-      const departureYear = profile.desiredDepartureDate
-        ? new Date(profile.desiredDepartureDate).getFullYear()
-        : 2025;
-      const imported = importCareerFromCsv(csvText, departureYear);
-      if (imported.length > 0) {
-        handleUpdateCareer(imported);
-      } else {
-        alert("Erreur lors de l'import : aucun enregistrement valide trouvé.");
-      }
-    } catch {
-      alert("Erreur lors de l'analyse du fichier CSV : format invalide.");
+      const departureYear = new Date(profile.desiredDepartureDate).getUTCFullYear() || 2025;
+      handleUpdateCareer(importCareerFromCsv(csvText, departureYear));
+      return [];
+    } catch (error) {
+      return error instanceof CareerCsvError ? error.issues : ['La lecture du relevé CSV a échoué.'];
     }
   };
 

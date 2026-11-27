@@ -36,7 +36,7 @@ interface Step2CareerProps {
   onChangeProfile: (updated: Partial<UserProfile>) => void;
   onChangeCareer: (updated: CareerYear[]) => void;
   onExportCsv: () => void;
-  onImportCsv: (csvText: string) => void;
+  onImportCsv: (csvText: string) => string[];
   samAnalysis: SamAnalysis;
   longCareer: LongCareerResult;
   requiredQuarters: number;
@@ -66,7 +66,10 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   const hasScaleDates = validDate(profile.birthDate) && validDate(profile.desiredDepartureDate);
   const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
   const [showDetailedTable, setShowDetailedTable] = useState<boolean>(true);
+  const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const csvReader = React.useRef<FileReader | null>(null);
+  React.useEffect(() => () => csvReader.current?.abort(), [career, isExpress]);
   const recordedYears = new Set(career.map(({ year }) => year)).size;
   const agircCareer = selectAgircRights(career, profile.desiredDepartureDate);
   const totalPoints = agircCareer.rights.reduce((sum, row) => sum + row.agircPoints, 0);
@@ -188,11 +191,14 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    csvReader.current?.abort();
     const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      if (text) onImportCsv(text);
+    csvReader.current = reader;
+    setCsvErrors([]);
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setCsvErrors(onImportCsv(reader.result));
     };
+    reader.onerror = () => setCsvErrors(['Impossible de lire le fichier sélectionné.']);
     reader.readAsText(file);
     e.target.value = '';
   };
@@ -521,6 +527,15 @@ export const Step2Career: React.FC<Step2CareerProps> = ({
               />
             </div>
           </div>
+
+          {csvErrors.length > 0 && (
+            <div role="alert" className="rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-900">
+              <p className="font-semibold">Import refusé. Le relevé actuel est conservé.</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {csvErrors.map((error) => <li key={error}>{error}</li>)}
+              </ul>
+            </div>
+          )}
 
           <SamParametersNote analysis={samAnalysis} />
 
